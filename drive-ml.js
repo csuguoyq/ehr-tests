@@ -149,8 +149,18 @@ let browser = null;
   console.log(`\n=== DONE in ${((Date.now() - t0) / 1000).toFixed(1)}s (host from .env) ===`);
   console.log("resolved params: " + JSON.stringify(resolved));
 
-  await browser.close();
+  // Headed runs keep the window open after DONE so a human can inspect the
+  // final screen (KEEP_BROWSER_MS, same knob as the test fixtures; headless
+  // never waits). The hard timeout is cleared first — the keep-open delay
+  // must not kill the process mid-wait.
   clearTimeout(HARD);
+  const keepMs = HEADLESS ? 0 : Number(process.env.KEEP_BROWSER_MS ?? 60_000) || 0;
+  if (keepMs > 0) {
+    console.log(`[drv] keeping browser open ${keepMs / 1000}s (KEEP_BROWSER_MS) …`);
+    await page.waitForTimeout(keepMs);
+  }
+
+  await browser.close();
   process.exit(0);
 })().catch(async (e) => {
   console.error("\n[drv] FAILED:", e && e.stack ? e.stack : e);
