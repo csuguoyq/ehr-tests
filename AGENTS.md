@@ -6,13 +6,14 @@
 ## 会话开始必读
 
 1. [PROJECT.md](PROJECT.md) — 架构分层、铁律、结构与规模阈值、最终目标（North Star）、与 ehr/tests 的关系
-2. [MODULES.md](MODULES.md) / [PAGES.md](PAGES.md) / [GOALS.md](GOALS.md) — 三张状态表（模块注册 / 页面状态 / 目标状态）
+2. [MODULES.md](MODULES.md) / [PAGES.md](PAGES.md) / [GOALS.md](GOALS.md) / [TCS.md](TCS.md) — 状态表（模块注册 / 页面状态 / 目标状态 / TC 映射）
 
 ## 铁律速查（全文以 PROJECT.md 为准）
 
 - 每轮只做一个垂直切片；完成后更新 goals.yaml + 三张状态表 + PROJECT.md 已知限制
 - Flow 只编排；Page Object 不写业务 if；Step ≤3 分支；固化执行的运行时禁止调用 AI
 - 选择器以 Page Object 为唯一权威；交互会话里验证的选择器必须沉淀回 Page Object
+- 用户要求「按 TC/SZ 号测试」时：先查 [TCS.md](TCS.md)——已固化的直接跑对应 spec；未固化的按 TC 原文执行，完成后登记回 TCS.md
 - 目录按规模阈值调整（见 PROJECT.md「结构与规模阈值」），不预设全量
 
 ## 运行

@@ -1,7 +1,7 @@
 # ehr-tests — EHR Playwright 自动化测试框架
 
 按 `docs/deepseek_markdown_20260911_79eb5c.md` 实施的目标驱动测试框架。设计与状态见
-[PROJECT.md](PROJECT.md)、[MODULES.md](MODULES.md)、[PAGES.md](PAGES.md)、[GOALS.md](GOALS.md)。
+[PROJECT.md](PROJECT.md)、[MODULES.md](MODULES.md)、[PAGES.md](PAGES.md)、[GOALS.md](GOALS.md)、[TCS.md](TCS.md)（TC 映射）。
 最终目标（AI 写 TC→审核→执行→报告 / 按 bug 重现 / 按需产生数据）与达成路线见
 [PROJECT.md「最终目标」](PROJECT.md#最终目标north-star)。
 
