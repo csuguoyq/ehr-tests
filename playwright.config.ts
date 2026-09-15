@@ -23,7 +23,8 @@ export const EHR_BASE_URL = `https://${EHR_HOST}.clinicomp.com/${WEBFRAME_DIR}/i
 
 /**
  * Viewing a run: set HEADLESS=0 (or just pass --headed) to open a visible
- * browser window, and SLOW_MO=<ms> to slow every action so you can follow it.
+ * browser window (maximized, and kept open KEEP_BROWSER_MS=60000 by default
+ * after the test finishes), and SLOW_MO=<ms> to slow every action.
  * Inline env wins over .env (dotenv does not override already-set vars):
  *   HEADLESS=0 npx playwright test specs/login.spec.ts
  */
@@ -46,7 +47,9 @@ export default defineConfig({
     baseURL: EHR_BASE_URL,
     headless: HEADLESS,
     ignoreHTTPSErrors: true,
-    viewport: { width: 1680, height: 1000 },
+    /* viewport:null → follow the real window (the browser fixture launches
+       with --start-maximized) instead of a fixed 1680x1000 emulation box. */
+    viewport: null,
     /* Failure evidence: trace + screenshot + video, per PROJECT.md. */
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
@@ -55,8 +58,11 @@ export default defineConfig({
   },
   projects: [
     {
+      /* Plain chromium, no devices["Desktop Chrome"] spread: that preset pins
+         viewport to 1280x720 + deviceScaleFactor, and deviceScaleFactor is
+         rejected outright when viewport:null (follow the real window). */
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { browserName: "chromium", viewport: null },
     },
   ],
 });
