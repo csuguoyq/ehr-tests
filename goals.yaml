@@ -132,6 +132,9 @@ goals:
     flow: QuickChargeFlow
     implemented: true
     params:
+      mrn:
+        type: string
+        default: null   # 按 MRN 直接搜索打开账户（最快最准）；给了 mrn 可省 patientName
       patientName:
         type: string
         default: null   # 患者姓氏；与 create_encounter 同次编排时可省略（用 scratch）

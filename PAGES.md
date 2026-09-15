@@ -28,8 +28,8 @@
 
 | 页面 | 路由 | 优先级 | 状态 | 已实现动作 | 用于 Flow | 最后验证 |
 |---|---|---|---|---|---|---|
-| BNR | rail Charge Services → Account Lookup → 患者 BNR Overview；MUI | P0 | 已通过 | openFromRail, search（按患者名）, openPatientAccount（双击行）, openFirstBnrDetail（H 行 Open） | quick_charge | 2026-09-12 |
-| Quick Charge | BNR 详情 Charges tab → Add Charges → Quick Charge 面板 | P0 | 已通过 | openCharges, addCpt（点行入队）, setQuantities, submit（含 CDM/Error 弹窗防御）, expectChargesPosted | quick_charge | 2026-09-12 |
+| BNR | rail Charge Services → Account Lookup → 患者 BNR Overview；MUI | P0 | 已通过 | openFromRail, search（按患者名）, openPatientAccount（双击行）, openPatientAccountByMrn（单击姓名格；双击 MRN/SSN 格无效）, openFirstBnrDetail（H 行 Open） | quick_charge | 2026-09-15 |
+| Quick Charge | BNR 详情 Charges tab → Add Charges → Quick Charge 面板 | P0 | 已通过 | openCharges, addCpt（点行入队）, setQuantities, submit（含 CDM/Error 弹窗防御）, expectChargesPosted（断言最新行） | quick_charge | 2026-09-15 |
 
 ## Coding
 

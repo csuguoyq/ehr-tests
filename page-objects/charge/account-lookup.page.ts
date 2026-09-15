@@ -45,6 +45,22 @@ export class AccountLookupPage {
     ).toBeVisible({ timeout: 30_000 });
   }
 
+  /**
+   * Search by MRN and open the account of the row carrying that MRN
+   * (verified on fbch34 2026-09-15: MRN search returns the row; opening
+   * the account is a single CLICK on the patient-NAME cell — dblclicking
+   * the MRN/SSN cells does nothing).
+   */
+  async openPatientAccountByMrn(mrn: string): Promise<void> {
+    await this.search(mrn);
+    const mrnCell = this.page.getByRole("cell").filter({ hasText: mrn }).first();
+    await expect(mrnCell).toBeVisible({ timeout: 20_000 });
+    await mrnCell.locator("xpath=..").getByRole("cell").first().click();
+    await expect(
+      this.page.getByRole("tab", { name: "BNR Overview", exact: true })
+    ).toBeVisible({ timeout: 30_000 });
+  }
+
   /** Open the first (Hospital) child BNR via its row "Open" action. */
   async openFirstBnrDetail(): Promise<void> {
     const link = this.page

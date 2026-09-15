@@ -94,7 +94,11 @@ export class QuickChargePage {
     await expect(this.transactionsGrid).toBeVisible({ timeout: 30_000 });
     for (const cpt of cpts) {
       await expect(
-        this.transactionsGrid.getByRole("row", { name: new RegExp(cpt) })
+        // A patient may carry older transactions of the same CPT; assert on
+        // the newest row (grid is date-ascending, just-posted row is last).
+        this.transactionsGrid
+          .getByRole("row", { name: new RegExp(cpt) })
+          .last()
       ).toContainText(String(qty), { timeout: 30_000 });
     }
   }

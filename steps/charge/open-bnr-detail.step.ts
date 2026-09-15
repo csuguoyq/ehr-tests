@@ -1,8 +1,9 @@
 // steps/charge/open-bnr-detail.step.ts — open the Charge Services app from the
 // rail and reach the patient's Hospital BNR detail view (Account Summary /
 // Charges / Coding / ... tabs).
-// Patient identity: explicit `patientName` param, else the patient generated
-// earlier in the same flow execution (ctx.scratch.patient).
+// Patient identity: explicit `mrn` (searched directly, fastest/most precise),
+// else explicit `patientName`, else the patient generated earlier in the same
+// flow execution (ctx.scratch.patient).
 
 import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
@@ -15,19 +16,24 @@ export function resolvePatientName(ctx: EhrContext, params: ResolvedParams): str
     (ctx.scratch.patient as { lastName?: string } | undefined)?.lastName;
   if (!name) {
     throw new Error(
-      "该目标需要 patientName（患者姓氏），或与 create_encounter 在同一次编排中运行以复用其生成的新患者"
+      "该目标需要 mrn 或 patientName（患者姓氏），或与 create_encounter 在同一次编排中运行以复用其生成的新患者"
     );
   }
   return name;
 }
 
 export async function openBnrDetailStep(ctx: EhrContext, params: ResolvedParams): Promise<void> {
-  const patientName = resolvePatientName(ctx, params);
   const lookup = new AccountLookupPage(ctx.page, ctx.env);
-  ctx.log.step("open-bnr-detail", `patient=${patientName}`);
+  const mrn = typeof params.mrn === "string" ? params.mrn : "";
+  ctx.log.step("open-bnr-detail", mrn ? `mrn=${mrn}` : `patient=${resolvePatientName(ctx, params)}`);
 
   await lookup.openFromRail("Charge Services");
-  await lookup.search(patientName);
-  await lookup.openPatientAccount(patientName);
+  if (mrn) {
+    await lookup.openPatientAccountByMrn(mrn);
+  } else {
+    const patientName = resolvePatientName(ctx, params);
+    await lookup.search(patientName);
+    await lookup.openPatientAccount(patientName);
+  }
   await lookup.openFirstBnrDetail();
 }

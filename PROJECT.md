@@ -164,11 +164,11 @@ npx playwright test                        # 全量回归
 
 ### 阶段 3（quick_charge 切片，2026-09-12，fbch34）
 
-- Charge Services 的 Account Lookup 按**患者姓名**搜索有效；按 BNR 号搜索返回 0 结果。
+- Charge Services 的 Account Lookup 按**患者姓名或 MRN** 搜索有效（2026-09-15 实测 MRN 直查）；按 BNR 号搜索返回 0 结果。结果行只在**单击姓名单元格**时打开（姓名路径此前用双击也有效）；双击 MRN/SSN 单元格无反应。
 - 打开路径：患者行双击 → BNR Overview → Hospital 子 BNR 行的 "Open"（base 行的同名 link 单元为空，需按文本 Open 过滤）。
 - BNR 详情 Charges tab 的 "Add Charges" 是 **tab**（testid `charge-services-tab-bnr-add-charges`），不是 button；切到该 tab 才渲染 Quick Charge 面板。
 - Quick Charge 行的 textContent 是 **CPT 与描述连写**（`96372THERAPEUTIC ...`），正则 `\b96372\b` 不匹配；用子串匹配。
-- 提交后队列清空、视图停留在 Add Charges；需切到 View Charges（`charge-services-tab-bnr-charge-transactions`）才能看到 `charge-services-transactions-datagrid` 里的 In Process 行。
+- 提交后队列清空、视图停留在 Add Charges；需切到 View Charges（`charge-services-tab-bnr-charge-transactions`）才能看到 `charge-services-transactions-datagrid` 里的 In Process 行。患者可能有同 CPT 的历史交易行，断言取日期最新的行（`.last()`）。
 - 本次环境 Submit **没有**出现 CDM Conflict / "Error Submitting" 弹窗；代码仍保留防御处理。
 - Create Patient 的提交点击偶发被应用吞掉（对话框不关、无请求、按钮仍 enabled）；step 检测后重按可恢复。
 - 潜在重复弹窗提供 "Create New Patient"（强制创建）按钮：测试数据用唯一姓名 + 新 SSN，直接强制创建即可（不再换数据重试）。
