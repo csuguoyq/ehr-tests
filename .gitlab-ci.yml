@@ -1,0 +1,19 @@
+# .gitlab-ci.yml — replaces Auto DevOps (which cannot build/test an E2E
+# framework that needs a deployed EHR box; see PROJECT.md). We only run
+# type-check + goal-registry sanity here; real E2E runs happen on a machine
+# with network access to the target host (EHR_HOST), not in CI.
+
+stages:
+  - check
+
+typecheck:
+  stage: check
+  image: node:20
+  script:
+    - npm ci
+    - npm run build:drv
+    - node -e "const{loadGoals}=require('./.build-drv/src/executor/runner.js');const{matchGoal}=require('./.build-drv/src/executor/goal-matcher.js');const g=loadGoals();console.log('goals loaded:',Object.keys(g).length);for(const name of Object.keys(g)){const m=matchGoal(name,g);if(!m||m.goal.name!==name)throw new Error('goal not matchable: '+name)}"
+  cache:
+    key: $CI_COMMIT_REF_SLUG
+    paths:
+      - .npm/

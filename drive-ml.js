@@ -154,7 +154,7 @@ let browser = null;
   // never waits). The hard timeout is cleared first — the keep-open delay
   // must not kill the process mid-wait.
   clearTimeout(HARD);
-  const keepMs = HEADLESS ? 0 : Number(process.env.KEEP_BROWSER_MS ?? 60_000) || 0;
+  const keepMs = HEADLESS ? 0 : Number(process.env.KEEP_BROWSER_MS ?? 30_000) || 0;
   if (keepMs > 0) {
     console.log(`[drv] keeping browser open ${keepMs / 1000}s (KEEP_BROWSER_MS) …`);
     await page.waitForTimeout(keepMs);

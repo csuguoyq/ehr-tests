@@ -296,6 +296,49 @@ export class OrderEntryPage {
     }
   }
 
+  /**
+   * ORDER DETAILS (verified on fbch34 2026-09-15, discharge order):
+   * - It is a MIXED MUI/ExtJS form: Discharge Disposition is a MUI <p> label
+   *   ("Discharge Disposition:*") followed by a MUI select whose options are
+   *   li[role=option] (NOT .x-boundlist). Discharge Date is prefilled with
+   *   today (mask input). Authorizing Provider is usually PREFILLED (e.g.
+   *   "34494a dstest") — the Pre-Add empty-provider block from 2026-09-12
+   *   does not apply here; no provider action is needed.
+   * - Confirming is footer "Done" (NOT "Apply/Close"), then the NEW ORDERS
+   *   panel submits via "Submit" (NOT "Save"). Save raises the usual dialog
+   *   chain; Validation Dialog asks "Are you sure you wish to Save order(s)?".
+   */
+  async setDetailsDisposition(disposition: string): Promise<void> {
+    const input = this.page
+      .locator('xpath=(//p[contains(normalize-space(.),"Discharge Disposition")]//following::input)[1]')
+      .first();
+    await expect(input).toBeVisible({ timeout: 15_000 });
+    if (await input.inputValue()) return; // already set
+    await input.click();
+    const option = this.page
+      .locator("li[role=option]")
+      .filter({ hasText: new RegExp(disposition.replace(/-/g, "-?"), "i") })
+      .first();
+    await expect(option).toBeVisible({ timeout: 15_000 });
+    await option.click();
+    await expect(input).not.toHaveValue("");
+  }
+
+  /** Confirm ORDER DETAILS via its footer Done button. */
+  async confirmDetailsDone(): Promise<void> {
+    const done = this.page.getByRole("button", { name: "Done", exact: true }).last();
+    await expect(done).toBeVisible({ timeout: 15_000 });
+    await done.click();
+  }
+
+  /** Submit the NEW ORDERS panel, then run the post-submit dialog chain. */
+  async submitOrder(): Promise<void> {
+    const submit = this.page.getByText("Submit", { exact: true }).last();
+    await expect(submit).toBeVisible({ timeout: 15_000 });
+    await submit.click();
+    await this.handleSaveDialogs();
+  }
+
   /** Type a provider query and pick the first matching option. */
   async setProvider(providerQuery: string): Promise<void> {
     const input = this.page.locator('input[placeholder="Provider Search (Min. 3 Letters)"]').last();

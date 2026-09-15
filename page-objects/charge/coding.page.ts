@@ -29,6 +29,7 @@ export class CodingPage {
 
   readonly view: Locator;
   readonly codingTab: Locator;
+  readonly drgTab: Locator;
   readonly diagnosisTab: Locator;
   readonly adtTab: Locator;
   readonly completeButton: Locator;
@@ -38,16 +39,20 @@ export class CodingPage {
     this.env = env;
     this.view = page.getByTestId("charge-services-coding-view");
     this.codingTab = page.getByRole("tab", { name: "Coding", exact: true });
+    this.drgTab = page.getByRole("tab", { name: "DRG", exact: true });
     this.diagnosisTab = page.getByRole("tab", { name: "Diagnosis", exact: true });
     this.adtTab = page.getByRole("tab", { name: "ADT", exact: true });
     this.completeButton = page.getByTestId("coding-complete-button");
   }
 
-  /** Open Coding and start the session if the Begin Coding dialog pops. */
+  /** Open Coding and start (or restart) the session if the dialog pops. */
   async open(): Promise<void> {
     await this.codingTab.click();
     await expect(this.view).toBeVisible({ timeout: 20_000 });
-    const begin = this.page.getByRole("button", { name: "Begin Coding" });
+    // First open pops "Begin Coding"; a Completed record pops "Begin Recoding".
+    const begin = this.page
+      .getByRole("button", { name: /Begin (Coding|Recoding)/ })
+      .first();
     if (await begin.isVisible().catch(() => false)) {
       await begin.click();
     }
@@ -56,23 +61,45 @@ export class CodingPage {
     });
   }
 
-  /** Fill the admit + principal diagnosis slots (codes, e.g. I69.941). */
+  /**
+   * Fill the admit + principal diagnosis slots (codes, e.g. I69.941) with
+   * Code Date = today (target box's timezone).
+   * Verified on fbch34 (2026-09-15):
+   * - "Add Diagnosis" opens a FULL-PAGE form (not a role=dialog, not inline
+   *   slots): two sections (Admit / Principal), each with #diagnosis-ICD10_CM_Code,
+   *   #diagnosis-Code_Date (mask __/__/____), POA/HAC/CC/MCC, disabled Type and
+   *   Code Set Source. POA etc. may stay empty; Save Diagnosis is page-level.
+   * - Code input: type all but the last character → pick li[role=option]
+   *   (same as before; the full code auto-resolves without a list).
+   * - Code Date accepts typed MM/DD/YYYY through the mask input.
+   */
   async fillDiagnoses(admitDiagnosis: string, principalDiagnosis: string): Promise<void> {
     await this.diagnosisTab.click();
-    await this.ensureDiagnosisSlots(2);
-    await this.pickDiagnosisCode(0, admitDiagnosis);
-    await this.pickDiagnosisCode(1, principalDiagnosis);
+    await this.view.getByRole("button", { name: "Add Diagnosis" }).click();
+    await expect(this.page.locator("#diagnosis-ICD10_CM_Code").first()).toBeVisible({
+      timeout: 20_000,
+    });
+    const codeDate = this.boxToday();
+    const codes = [admitDiagnosis, principalDiagnosis];
+    for (let k = 0; k < codes.length; k++) {
+      await this.pickDiagnosisCode(k, codes[k]);
+      const dateInput = this.page.locator("#diagnosis-Code_Date").nth(k);
+      await dateInput.click();
+      await dateInput.fill("");
+      await dateInput.pressSequentially(codeDate, { delay: 40 });
+      await expect(dateInput).toHaveValue(codeDate);
+    }
   }
 
-  /** The Diagnosis sub-tab renders one slot per expected diagnosis type. */
-  private async ensureDiagnosisSlots(count: number): Promise<void> {
-    for (let i = 0; i < 5; i++) {
-      const slots = this.page.locator("#diagnosis-ICD10_CM_Code");
-      if ((await slots.count()) >= count) return;
-      await this.page.getByRole("button", { name: "Add Diagnosis" }).first().click();
-      await this.page.waitForTimeout(300);
-    }
-    throw new Error(`未能渲染 ${count} 个 diagnosis 槽位`);
+  /** Today's date (MM/DD/YYYY) in the target box's timezone (fbch34: US Pacific). */
+  private boxToday(): string {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+    }).format(new Date());
+    return parts;
   }
 
   private async pickDiagnosisCode(index: number, code: string): Promise<void> {
@@ -105,6 +132,52 @@ export class CodingPage {
         this.page.getByRole("row", { name: new RegExp(code.replace(".", "\\.")) })
       ).toBeVisible({ timeout: 20_000 });
     }
+  }
+
+  /**
+   * DRG sub-tab: add a DRG code with Severity of Illness / Risk of Mortality.
+   * Verified on fbch34 (2026-09-15):
+   * - "Add DRG" opens an INLINE form (no dialog): #DRG-DRG ("Search DRGs")
+   *   auto-completes. Typing the FULL code auto-selects the record and shows
+   *   NO option list (same behavior as the diagnosis code field) — the fields
+   *   DRG_Type/MDC/Weight then fill in disabled.
+   * - Severity of Illness and Risk of Mortality are required "Make Selection"
+   *   dropdowns (`li[role=option]`).
+   * - "Save DRG" (also carries data-testid dialog-submit-button, but that
+   *   testid is shared with the view-level Complete button — locate by role
+   *   name, page-wide: the button sits outside charge-services-coding-view).
+   */
+  async setDrg(drgCode: string, severityIllness: string, riskOfMortality: string): Promise<void> {
+    await this.drgTab.click();
+    await this.view.getByRole("button", { name: "Add DRG" }).click();
+    const drgInput = this.page.locator("#DRG-DRG");
+    await expect(drgInput).toBeVisible({ timeout: 15_000 });
+    await drgInput.click();
+    await drgInput.pressSequentially(drgCode, { delay: 120 });
+    await expect(drgInput).not.toHaveValue("", { timeout: 15_000 });
+    await expect(drgInput).toHaveValue(new RegExp(`^${drgCode}\\b`), { timeout: 15_000 });
+    await this.pickSelection(`#DRG-Severity_Illness`, severityIllness);
+    await this.pickSelection(`#DRG-Risk_Mortality`, riskOfMortality);
+    await this.page.getByRole("button", { name: "Save DRG" }).click();
+    await expect(
+      this.view
+        .locator('[data-testid="charge-read-only-table"]')
+        .getByRole("row")
+        .filter({ hasText: drgCode })
+    ).toBeVisible({ timeout: 20_000 });
+  }
+
+  /** Required "Make Selection" dropdown inside the inline coding forms. */
+  private async pickSelection(inputSelector: string, optionPrefix: string): Promise<void> {
+    const input = this.page.locator(inputSelector);
+    if (await input.inputValue()) return; // already filled
+    await input.click();
+    const option = this.page
+      .locator("li[role=option]")
+      .filter({ hasText: optionPrefix })
+      .first();
+    await expect(option).toBeVisible({ timeout: 15_000 });
+    await option.click();
   }
 
   /** ADT sub-tab: set Discharge Disposition via the pencil edit form. */

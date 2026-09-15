@@ -70,6 +70,13 @@ export class AccountLookupPage {
     await expect(link).toBeVisible({ timeout: 20_000 });
     await link.click();
   }
+
+  /** Read the first result row's cells (read-only; cells: name, dob, sex, MRN, SSN). */
+  async readFirstResultRow(): Promise<string[]> {
+    const cells = this.page.getByRole("cell");
+    await expect(cells.first()).toBeVisible({ timeout: 20_000 });
+    return (await cells.allTextContents()).map((c) => c.trim()).filter(Boolean);
+  }
 }
 
 /** Shared rail click (kept tiny; Registration page object has its own). */

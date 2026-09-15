@@ -35,7 +35,7 @@
 
 | 页面 | 路由 | 优先级 | 状态 | 已实现动作 | 用于 Flow | 最后验证 |
 |---|---|---|---|---|---|---|
-| Coding View | BNR 详情 Coding tab（子 tab: DRG/Diagnosis/Procedure/ADT/...） | P0 | 已通过 | open（含 Begin Coding 弹窗）, fillDiagnoses, saveDiagnoses, expectDiagnosesSaved, setDischargeDisposition, complete | coding_complete | 2026-09-12 |
+| Coding View | BNR 详情 Coding tab（子 tab: DRG/Diagnosis/Procedure/ADT/...） | P0 | 已通过 | open（含 Begin Coding / Begin Recoding 弹窗）, fillDiagnoses（Add Diagnosis 整页表单，Code Date=box 时区当天）, saveDiagnoses, expectDiagnosesSaved, setDrg（完整码自动选中无候选列表；Severity/Risk 必选；Save DRG 按钮在 view 外）, setDischargeDisposition, complete | coding_complete | 2026-09-15 |
 | Diagnosis | Coding → Diagnosis 子 tab（两个槽位 Admit/Principal） | P0 | 已通过 | 见 Coding View | coding_complete | 2026-09-12 |
 | ADT (coding) | Coding → ADT 子 tab（Point of Origin / Discharge Disposition） | P0 | 已通过 | 见 Coding View | coding_complete, discharge | 2026-09-12 |
 

@@ -145,11 +145,26 @@ goals:
         type: number
         default: 10
 
+  lookup_account:
+    aliases: ["查找患者", "查询患者", "患者是否存在", "lookup patient"]
+    flow: LookupAccountFlow
+    implemented: true
+    params:
+      mrn:
+        type: string
+        default: null   # 按 MRN 查（最快最准）；mrn/patientName 二选一
+      patientName:
+        type: string
+        default: null   # 患者姓氏
+
   coding_complete:
     aliases: ["完成编码", "coding complete", "编码完成"]
     flow: CodingCompleteFlow
     implemented: true
     params:
+      mrn:
+        type: string
+        default: null   # 按 MRN 直接搜索打开账户（同 quick_charge）；给了 mrn 可省 patientName
       patientName:
         type: string
         default: null   # 患者姓氏；与 create_encounter 同次编排时可省略（用 scratch）
@@ -159,6 +174,15 @@ goals:
       principalDiagnosis:
         type: string
         default: "S94.10XD"
+      drg:
+        type: string
+        default: "182"   # 完整码自动选中（无候选列表，同诊断码）；如 "182"
+      severityIllness:
+        type: string
+        default: "1 - Minor"
+      riskMortality:
+        type: string
+        default: "1 - Minor"
       dischargeDisposition:
         type: string
         default: "Home or self-care"

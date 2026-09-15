@@ -136,7 +136,12 @@ export class EncounterPage {
     await expect(this.page.getByTestId("encounters-discharge-dischargeDisposition-field")).toBeVisible(
       { timeout: 15_000 }
     );
-    await expect(this.page.getByTestId("encounters-Discharge-order-message")).toHaveCount(0);
+    // The message element STAYS in the DOM after the order is detected — it
+    // flips to "Order in Place" (with a green check). Assert its text, not
+    // its count (count-0 hung the whole discharge slice on fbch34 2026-09-15).
+    await expect(this.page.getByTestId("encounters-Discharge-order-message")).toContainText(
+      /Order in Place/i, { timeout: 15_000 }
+    );
   }
 
   async setDischargeDisposition(disposition: string): Promise<void> {

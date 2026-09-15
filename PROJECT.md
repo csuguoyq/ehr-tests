@@ -178,14 +178,22 @@ npx playwright test                        # 全量回归
 - 首次打开 Coding tab 会弹 "Begin Coding" 确认；点 Begin 后状态变 In Progress。
 - Diagnosis 子 tab 一次渲染两个槽位（Type of Diagnosis 自动分配为 Admit / Principal，字段 disabled）；一个 Save Diagnosis 保存两行。
 - 诊断码是异步 Autocomplete：**输入完整码会被自动填充但不产生可选列表，Save 仍 disabled**；必须少输入最后一个字符逼出 `li[role=option]` 再点选。
+- 2026-09-15 起诊断录入改为 **Add Diagnosis 整页表单**（不是 view 内槽位、也不是 role=dialog）：Admit/Principal 两个区，每区 `#diagnosis-ICD10_CM_Code` + `#diagnosis-Code_Date`（掩码 `__/__/____`，可直接键入 MM/DD/YYYY，要求=当天，按 box 时区）+ POA/HAC/CC/MCC（可留空）；Save Diagnosis 在页面级。
 - ADT 子 tab 的 Discharge Disposition 需点铅笔（`svg[data-testid="EditIcon"]`）→ 表单里第 2 个 `input[placeholder="Make Selection"]` → Save（显示 `<值>(Modified)`）。
-- `coding-complete-button`（Complete）把状态置为 Complete；DRG 在本环境为 None，可选。
+- `coding-complete-button`（Complete）把状态置为 Complete；2026-09-15 补齐 DRG：Add DRG 是内嵌表单（无弹窗），`#DRG-DRG` 输入完整码自动选中（无候选列表），Severity/Risk of Mortality 必选，"Save DRG" 按钮在 coding-view 容器外且与 Complete 共用 dialog-submit-button testid（须按 name 定位）。
+- 已 Complete 的记录再进 Coding 会弹 "Begin Recoding"（不是 Begin Coding）；重编码会话里旧诊断仍在，fillDiagnoses 的 Add Diagnosis 会被遮挡——重编码路径未支持，重新编码请对新数据全流程跑。
 
 ### 阶段 5（discharge 切片，进行中，2026-09-12，fbch34）
 
-本切片已实现到「CPOE2 出院医嘱」的前置环节，阻塞在 BROWSE ORDERS 面板的
-**Authorizing Provider** 查询：对新创建的患者该字段（MUI Autocomplete）输入 ≥3 字母
-（如 `tes`）后 **不返回任何候选**，Add 按钮因此保持 disabled（计数已为 1）。
+**2026-09-15 出院医嘱已打通（fbch34，Testbot_2609151356）**：ORDER DETAILS 里
+Authorizing Provider 是预填的（如 "34494a dstest"），无需 Pre-Add 查询；必填的
+Discharge Disposition 是 MUI select（li[role=option]，值如 "Home or self-care" 带连字符）；
+确认走 footer **Done**、提交走面板 **Submit**（无 Save 按钮），随后 Validation Dialog
+确认密码。expectOrderActive 实测读到 Active。以下为历史阻塞记录：
+
+此前阻塞在 BROWSE ORDERS 面板的 **Authorizing Provider** 查询：对新创建的患者该字段
+（MUI Autocomplete）输入 ≥3 字母（如 `tes`）后 **不返回任何候选**，Add 按钮因此保持
+disabled（计数已为 1）。
 
 已验证事实（fbch34，gyq001）：
 
@@ -199,4 +207,5 @@ npx playwright test                        # 全量回归
 - ORDER DETAILS（成功后）字段：ADT Instruction / Category / Subcategory / Order Time* / Start Time* / Provider*；Provider 是 type-to-filter combo，**在 ORDER DETAILS 里查 `tes` 能返回候选**（`GATES,DANIEL,MD` 等），说明 Pre-Add 的 Provider 是另一个端点/过滤集。
 - Save 触发的对话框序列：`Screening Error`（Yes）→ `Order Decision Support`（OK）→ `Validation Dialog`（Username 预填 / Password 必须输入，空密码点 OK 是静默 no-op）。
 - Registration 侧：Encounters → 选 In Progress 的行 → `encounterDetails-discharge-button` → Discharge Details 面板显示 `encounters-Discharge-order-message` = "No Order in Place" 且 `encounters-form-save-button`（Discharge Patient）disabled，**证明需要 Active 的出院医嘱**。
+- **2026-09-15 全流程出院已打通**：医嘱 Active 后同一 message 元素翻成 "Order in Place"（带绿勾）但**仍留在 DOM**——断言必须查文本而非 toHaveCount(0)，否则永远失败（这就是本切片此前卡住的最后原因）。保存按钮 "Discharge Patient" 在面板底部（`encounters-form-save-button`），Playwright 自动滚动可点。
 - `PatientCreatePage.pickDob`：日期选择器有时以 year view 打开，双重 toggle 会切回日历视图（已修为幂等）；同名测试数据会触发 POTENTIAL DUPLICATE 弹窗，用其自带 "Create New Patient" 强制创建（`duplicate-patient-create-new-patient-button`）。

@@ -10,6 +10,7 @@ import { CreatePatientFlow } from "./create-patient.flow";
 import { CreateEncounterFlow } from "./create-encounter.flow";
 import { QuickChargeFlow } from "./quick-charge.flow";
 import { CodingCompleteFlow } from "./coding-complete.flow";
+import { LookupAccountFlow } from "./lookup-account.flow";
 
 export const FLOWS: Record<string, FlowDefinition> = {
   login: LoginFlow,
@@ -17,4 +18,5 @@ export const FLOWS: Record<string, FlowDefinition> = {
   create_encounter: CreateEncounterFlow,
   quick_charge: QuickChargeFlow,
   coding_complete: CodingCompleteFlow,
+  lookup_account: LookupAccountFlow,
 };

@@ -21,7 +21,7 @@ const readSlowMo = () => Number(process.env.SLOW_MO || 0);
 const readKeepBrowserMs = () => {
   const raw = process.env.KEEP_BROWSER_MS;
   if (raw !== undefined) return Number(raw) || 0;
-  return readHeadless() ? 0 : 60_000;
+  return readHeadless() ? 0 : 30_000;
 };
 
 export const test = base.extend<EhrFixtures>({
