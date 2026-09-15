@@ -12,8 +12,4 @@ typecheck:
   script:
     - npm ci
     - npm run build:drv
-    - node -e "const{loadGoals}=require('./.build-drv/src/executor/runner.js');const{matchGoal}=require('./.build-drv/src/executor/goal-matcher.js');const g=loadGoals();console.log('goals loaded:',Object.keys(g).length);for(const name of Object.keys(g)){const m=matchGoal(name,g);if(!m||m.goal.name!==name)throw new Error('goal not matchable: '+name)}"
-  cache:
-    key: $CI_COMMIT_REF_SLUG
-    paths:
-      - .npm/
+    - node scripts/check-goals.mjs
