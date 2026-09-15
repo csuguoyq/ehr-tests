@@ -1,0 +1,182 @@
+# goals.yaml — 目标与参数 schema（声明式，不写代码）。
+# 规则：只登记已确认的目标；implemented: false 表示已登记、Flow 未实现。
+# 参数解析优先级：overrides（命令行/用户）> preset > 默认值。
+
+goals:
+  login:
+    aliases: ["登录", "login", "log in", "登录 EHR"]
+    flow: LoginFlow
+    implemented: true
+    params:
+      username:
+        type: string
+        default: null   # null = 运行时取 env EHR_USER（见 steps/auth/login.step.ts）
+        description: 门户用户名；缺省用环境默认账号
+      password:
+        type: string
+        default: null   # null = 运行时取 env EHR_PASS
+        description: 门户密码；缺省用环境默认密码
+
+  create_patient:
+    aliases: ["创建患者", "create patient", "新建患者"]
+    flow: CreatePatientFlow
+    implemented: true
+    params:
+      # 全部可选；null = step 生成默认（姓名 Testbot_时间戳、SSN 日期+随机、DOB 随机年份）
+      firstName: { type: string, default: null, description: "默认 Auto" }
+      lastName: { type: string, default: null, description: "默认 Testbot_<YYMMDDHHmm>" }
+      ssn: { type: string, default: null, description: "默认 <YYMMDD><NNN> 3-2-4 随机" }
+      dob: { type: string, default: null, description: "MM/DD/YYYY；默认当前月日+随机年份 1980-2005" }
+      address1: { type: string, default: null, description: "默认 123 Main St" }
+      city: { type: string, default: null, description: "默认 San Diego" }
+      state: { type: string, default: null, description: "默认 CA" }
+      zip: { type: string, default: null, description: "默认 92101" }
+      sex: { type: string, default: null, description: "默认随机 Female/Male" }
+      citizenship: { type: string, default: null, description: "默认 US Citizen" }
+      searchMrn: { type: string, default: null, description: "解锁 Create New Patient 的搜索 MRN，默认 90001" }
+
+  create_encounter:
+    aliases: ["创建一个 encounter", "create encounter", "新建 encounter"]
+    flow: CreateEncounterFlow
+    implemented: true
+    params:
+      patientMode:
+        type: string
+        enum: ["new", "existing", "api"]
+        default: "new"
+      planId:
+        type: string
+        default: "68888"
+        requiredIf:
+          param: patientMode
+          values: ["new", "api"]
+      encounterType:
+        type: string
+        enum: ["Inpatient Acute", "Outpatient", "Emergency", "Observation"]
+        default: "Inpatient Acute"
+      admit:
+        type: boolean
+        default: null
+      waitForBnr:
+        type: boolean
+        default: null
+      # encounter/admit 数据（阶段 2 切片实测 fbch34）
+      facility:
+        type: string
+        default: null   # 默认 San Diego Medical Center - Cove Community Hospital
+      expectedDatetime:
+        type: string
+        default: null   # MM/DD/YYYY hh:mm；默认浏览器时钟 +1 小时
+      guarantorType:
+        type: string
+        default: null   # 新患者仅 Entity
+      guarantor:
+        type: string
+        default: null   # 新患者仅 Mini Reg Guarantor
+      admitType:
+        type: string
+        default: null   # 默认 Elective
+      pointOfOrigin:
+        type: string
+        default: null   # 默认 Home or Self Care
+      meansOfArrival:
+        type: string
+        default: null   # 默认 Self
+      levelOfCare:
+        type: string
+        default: null   # 默认 Med-Surg
+      bnrTimeoutMs:
+        type: number
+        default: 180000
+      # 建患者参数透传（new 模式固定姓名时用）；existing 模式下 ssn+lastName
+      # 用来打开已有患者（Registration 检索主条件 = SSN）
+      lastName:
+        type: string
+        default: null
+        requiredIf:
+          param: patientMode
+          value: "existing"
+      firstName:
+        type: string
+        default: null   # existing 模式缺省 "Auto"
+      ssn:
+        type: string
+        default: null
+        requiredIf:
+          param: patientMode
+          value: "existing"
+      dob:
+        type: string
+        default: null
+    presets:
+      inpatient_acute_admit:
+        patientMode: new
+        planId: "68888"
+        encounterType: Inpatient Acute
+        admit: true
+        waitForBnr: true
+      inpatient_acute_existing_patient:
+        patientMode: existing
+        encounterType: Inpatient Acute
+        admit: true
+        waitForBnr: false
+      outpatient:
+        patientMode: new
+        planId: "68888"
+        encounterType: Outpatient
+        admit: false
+        waitForBnr: false
+
+  quick_charge:
+    aliases: ["快速收费", "quick charge", "提交费用"]
+    flow: QuickChargeFlow
+    implemented: true
+    params:
+      patientName:
+        type: string
+        default: null   # 患者姓氏；与 create_encounter 同次编排时可省略（用 scratch）
+      cpts:
+        type: string
+        default: "96372,96374"   # 逗号分隔 CPT/HCPCS 码
+      qty:
+        type: number
+        default: 10
+
+  coding_complete:
+    aliases: ["完成编码", "coding complete", "编码完成"]
+    flow: CodingCompleteFlow
+    implemented: true
+    params:
+      patientName:
+        type: string
+        default: null   # 患者姓氏；与 create_encounter 同次编排时可省略（用 scratch）
+      admitDiagnosis:
+        type: string
+        default: "I69.941"
+      principalDiagnosis:
+        type: string
+        default: "S94.10XD"
+      dischargeDisposition:
+        type: string
+        default: "Home or self-care"
+
+  discharge:
+    aliases: ["出院", "discharge patient", "办理出院"]
+    flow: DischargeFlow
+    implemented: false   # 切片中：CPOE2 出院医嘱前置 Provider 查询在本环境返回空候选（见 PROJECT.md）
+    params:
+      lastName:
+        type: string
+        default: null   # 患者姓氏（必需）
+      ssn:
+        type: string
+        default: null   # 患者 SSN（Registration 检索主条件，必需）
+      firstName:
+        type: string
+        default: null
+      dischargeDisposition:
+        type: string
+        default: "Home or self-care"
+      providerQuery:
+        type: string
+        default: "tes"   # CPOE2 Provider 搜索串（≥3 字母，需能返回候选）

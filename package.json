@@ -1,0 +1,23 @@
+{
+  "name": "ehr-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EHR Playwright automation test framework — goal-driven vertical slices (see PROJECT.md)",
+  "scripts": {
+    "test": "playwright test",
+    "test:login": "playwright test specs/login.spec.ts",
+    "build:drv": "tsc -p tsconfig.build.json",
+    "check:selectors": "node scripts/check-selectors.mjs",
+    "drive:ml": "node drive-ml.js",
+    "show-report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0",
+    "@types/node": "^22.0.0",
+    "dotenv": "^16.4.5",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "yaml": "^2.5.0"
+  }
+}

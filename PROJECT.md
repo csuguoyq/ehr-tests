@@ -1,0 +1,200 @@
+# EHR Playwright Framework
+
+用户输入自然语言目标，执行器匹配 goals.yaml 中的目标，合并参数后由 Playwright 直接执行预定义 Flow。运行时纯 Playwright，不调用 AI。
+
+**独立工程**：本仓库不隶属任何应用仓库，可单独克隆、单独运行；只需网络可达一个 deployed webframe。与 ehr 应用仓库的协作约定是「并排克隆」（默认 `../ehr`，仅选择器审计会读取，且可用 `--ehr-src`/`EHR_SRC` 重定向，见 README）。
+
+实施计划来源：`docs/deepseek_markdown_20260911_79eb5c.md`（架构与铁律的唯一事实来源，本文不重复，只记状态）。
+
+## 最终目标（North Star）
+
+三个目标，按达成顺序排列（3 → 2 → 1；目标 1 分两阶段，「执行已有 TC」的近期阶段可与目标 2 并行）。
+
+### 目标 3：AI 按人工要求执行测试步骤、产生数据（最近）
+
+- **形态**：人工给业务级要求（如「造一个已出院、有欠费的患者」），AI 用 goals/presets 组合执行，产出数据。
+- **产出物定义**：除业务数据本身（患者/encounter/BNR），必须落盘一份**数据清单**（artifacts：生成了什么、id、host、时间）——`ctx.scratch` 只在单次编排内存活，跑完即丢，不落盘等于没产出。
+- **约束**：沿用 `Testbot_` 命名约定；不清理/不改动共享 box 上他人数据。
+- **现状与缺口**：最接近可达成。缺 (a) 数据清单落盘机制，(b) 批量参数执行（driver 循环 / 多 preset）。
+
+### 目标 2：AI 按 bug 重现步骤重现问题
+
+- **形态**：输入 SZ 的重现步骤（自由文本），AI 交互式驱动浏览器执行（skills/MCP 流程），已建 goal/Page Object 的部分直接复用加速。
+- **产出物定义**：重现报告——结论（复现 / 未复现 + 环境差异说明）+ 证据（trace/截图/网络日志）+ host 标注。
+- **沉淀闭环**：重现成功且需要回归的，按切片流程资产化为 goal/spec（铁律 1：先线性跑通，再抽 PO）；现场临时定位的选择器必须沉淀回 Page Object，不留只存在于会话里的知识。
+- **现状与缺口**：交互执行能力具备；PO 词表已覆盖 Registration/Charge/Coding；未覆盖模块（Scheduling、Patient Control 右键菜单等）可现场定位但必须回沉。
+
+### 目标 1：按 TC 执行 → 报告（近期即启动）；AI 写 TC → 人工读文件审查（远期）
+
+- **近期（现阶段）——执行已写好的 TC**：TC 由人工编写（来源：cciconnect 的 TC，经 ccisearch 查看，或人工直接提供）。AI **不生成 TC**，职责是读 TC → 按 TC 执行 → 产出报告。TC 不迁移、不重建，报告引用 SZ/TC 号即可追溯。
+- **远期——AI 写 TC**：AI 生成的 TC 落成 md 文件，**人工直接读文件审查**（不走 MR）；审查通过即进入可执行集合。TC 文件四要素：前置（goal/数据组合）→ 步骤（优先引用 goal 与 Page Object 动作词表）→ Verify（断言与期望值）→ 边界标注（服务器配置类/人工步骤显式标出）。`tcs/` 目录与模板届时随第一条 AI 生成的 TC 落地（铁律 12，现在不建）。
+- **执行分两种形态**：
+  - 固化执行：TC → spec（goal 编排），`npx playwright test` 跑，报告 = junit/HTML/trace（已有）。运行时无 AI（铁律 5 不变）。
+  - 交互执行：AI 会话按 TC 逐步驱动，产出 TC 运行记录（每步 pass/fail + 截图 + host）。记录格式在第一次按 TC 执行的试点时定稿（铁律 8，不预设）。
+- **现状与缺口**：固化执行已有（specs 即证据）；近期缺口是「按已有 TC 交互执行」的首次试点与运行记录格式；远期缺口才是 TC 模板与 `TCS.md` 追溯表（TC/SZ 号 ↔ goal 链 ↔ 覆盖状态）。
+
+### 铁律 5 的边界澄清（三目标共同的裁决）
+
+「运行时禁止调用 AI」指**固化执行的回归运行时**（spec/CI/`npx playwright test`/`drive-ml.js`）。目标 2 与目标 1 的交互执行是**人工发起的 AI 会话**，不受此限；但交互会话中验证过的选择器与流程必须沉淀为无 AI 的资产（PO/goal/spec），下次执行不再需要 AI。
+
+### 明确的自动化边界（不因目标放松）
+
+- 服务器配置类步骤（改 rcf、重启 daemon、dbwrite）→ 人工/ops。
+- 患者门户（PPT）等第二应用 → 暂不做，TC 标「部分自动化」。
+- 报告一律标注执行 host；跨物理机结果不可比。
+
+## 分层
+
+- `page-objects/`: 页面原子动作（定位器、断言、弹窗处理）
+- `steps/`: 业务原子动作（参数校验、默认值、≤3 分支）
+- `flows/`: 目标编排（不写定位器）
+- `specs/`: Playwright 测试入口
+- `fixtures/`: Playwright fixture（ehr 基础上下文 / authedPage 登录会话）
+- `api/`: HTTP fallback client（UI 按钮禁用等环境缺陷的兜底）
+- `goals.yaml`: 目标 + 参数 schema + preset + 别名
+- `src/executor/`: goal-matcher / param-resolver / runner
+- `drive-ml.js`: 单目标自然语言 CLI 驱动（需先 `npm run build:drv` 产出 `.build-drv/`）
+- `MODULES.md` / `PAGES.md` / `GOALS.md`: 状态表
+
+## 约定（铁律摘录）
+
+1. 先线性 spec 跑通，再抽 Page Object
+2. Page Object 不写业务 if
+3. Step 不超过 3 个分支
+4. Flow 只编排，不写定位器
+5. 运行时禁止调用 AI
+6. 新增能力必须同时更新 goals.yaml、MODULES.md、PAGES.md、GOALS.md
+7. 参数组合是数据，不是分支
+8. 不要提前抽象，第二次复用时才抽
+9. 每轮只做一个切片
+10. 不修改已通过的 spec，除非本轮明确要求
+11. 目录按需扩展，不预设全量清单
+12. 未实现的模块只在注册表登记，不提前建空文件
+
+## 结构与规模阈值
+
+目录结构随切片增长调整，但只按规则调，不按感觉调。模块隔离已经由 `page-objects/<模块>/`、`steps/<模块>/` 承担；会随模块变长的只有 `flows/`、`specs/`、goals 声明和状态 MD。
+
+### 模块多了：按「域」加一层，不拆运行时
+
+模块数量大之后（对照 `ehr/src` 有 80+ 目录），按业务域分组管理。域是模块的分组，不是新目录树的一级公民：
+
+```text
+goals/                       # goals.yaml 拆成每域一个文件（executor 已支持目录加载）
+  access.yaml                # Auth、Patient Control、Registration、Scheduling
+  revenue-cycle.yaml         # Charge、Coding、Billing、Insurance Claims
+  clinical.yaml              # OE(CPOE2)、Flowsheets、MAR、…
+flows/<域>/                  # 超阈值后 flows 加域层；跨域端到端链放 flows/e2e/
+specs/<域>/                  # 同上；npx playwright test specs/revenue-cycle 可跑整域
+page-objects/<模块>/          # 不变——模块目录本身已是隔离单元
+steps/<模块>/                 # 不变
+docs/status/<域>.md           # PAGES/GOALS 超阈值后外置；MODULES.md 永远是唯一索引
+```
+
+- 域的划分在第一个触发阈值的模块加入时定稿，不预设全量。
+- spec 打 `{ tag: "@<域>" }` 标签，`--grep-tag` 可不挪文件就跑整域。
+- **拒绝的方案**：每模块一个 package.json / playwright.config、按模块拆仓库——goal 编排天然跨模块（如 claim_to_submitted 串 5 个模块），executor、fixtures、scratch 必须共享一份。
+- Flow 归属主模块的域；跨域链归 `flows/e2e/`。
+
+### 触发阈值（按此调整，平时不动）
+
+- `flows/`、`specs/` 目标 >15 个 → 加域层目录。
+- `goals.yaml` >300 行 → 拆 `goals/<域>.yaml`（加载器已兼容单文件与目录两种形态，重复目标键会报错）。
+- `PAGES.md` >300 行或单模块 >10 张页面卡 → 外置 `docs/status/`，MODULES.md 留链接。
+- 目录调整只在专门的架构轮做，不顺带切片（铁律 9）。
+- `drive-ml.js` 是文档化的 CLI 入口（`npm run drive:ml`），固定在根目录，不挪 `scripts/`。
+
+## 运行
+
+```bash
+cp .env.example .env   # 按 target box 改 EHR_HOST
+npm install
+npx playwright test specs/login.spec.ts   # 阶段 1
+npx playwright test                        # 全量回归
+```
+
+环境变量：`EHR_HOST`（默认 fbch34）、`EHR_USER`/`EHR_PASS`（默认 demo/123）、`WEBFRAME_DIR`（默认 webframe）。⚠️ 主机是不同物理机，汇报结果时必须说明跑在哪台 host 上。
+
+选择器来源：本框架的 Page Object 为唯一权威，已验证的选择器直接沉淀在各 Page Object 中，不重复探测 DOM。
+
+## 与 ehr/tests 的关系
+
+`ehr/tests`（应用仓库内的 CI e2e）是借鉴来源，不是依赖。已借鉴：
+
+- **token 登录**（`api/auth.ts`）：POST `/logon/login` 取 ccitoken → `/Cps?webtoken=` 深链建立会话，跳过 ExtJS 表单。`authedPage` fixture 走此快路，失败自动兜底 UI 登录目标；`specs/login.spec.ts` 仍只测 UI 路径。2026-09-15 fbch34（gyq001）实测通过。
+- **选择器↔源码审计**（`scripts/check-selectors.mjs`，`npm run check:selectors`）：把 Page Object/specs/steps 里的 data-testid 与 ehr 源码对照。报告型（默认 exit 0）：本地源码分支可能≠目标 box 的部署构建分支，缺失≠错误；`--strict` 仅在确认本地树与部署构建同源时使用。ehr 源码位置默认 `../ehr/src`（并排克隆约定），可用 `--ehr-src <path>` 或 `EHR_SRC` 重定向；找不到则跳过审计。
+
+独立性边界：不 import `ehr/src`、不依赖 vite dev server / ehr 仓库的 node_modules，只要求网络可达一个 deployed webframe；`check:selectors` 对 `../ehr/src` 只读，目录不存在时自动跳过。
+
+## 已知限制
+
+（每轮追加）
+
+- 登录必须经 `logon?ctrl=cps` 入口建立 webtoken；直接开模块 URL 得到的是无会话壳。
+- ExtJS 登录表单两个输入框必须顺序填写（并行填写会竞态：username 为空、password 拼接）。
+- BNR 自动创建需等待几分钟（后续收费切片）。
+- CDM Conflict 后的 "Error Submitting" 弹窗是误报，dismiss 即可（后续收费切片）。
+- DRG 182 在测试环境常为 None，可选（后续编码切片）。
+- Registration Discharge 按钮可能 disabled，需走 DISCH API fallback（`api/` 预留）。
+- Start Billing 按钮存在前提：患者已 Discharged（后续计费切片）。
+- Page Object 中保留少量有注释背书的 settle wait（ExtJS 顺序填写、census 行绑定）；新增等待必须轮询条件，见 `src/utils/wait.ts` 头注。
+- 登录 fixture（authedPage）为 test 级：每个 test 完整登录一次；test 数增多后可考虑 worker 级 / storageState 复用（待第二次需要时再抽象）。
+- 本地 `ehr/src` 工作树 ≠ 目标 box 部署构建：`encounters-status-summary`、`encounterDetails-discharge-button` 等 8 个选择器在 fbch34 构建中存在、当前分支源码中没有；`npm run check:selectors` 报告的缺失需逐条人工判断。
+- authedPage 默认 token 登录（`api/auth.ts`），UI 登录仅作兜底与 login spec 的被测对象。
+
+### 阶段 2（create_patient 切片，2026-09-12，fbch34）
+
+- 搜索表单填单个主条件（MRN）即可解锁 Create New Patient 按钮；`sf-mrn-tf` 等 testid 在 MUI 包装 div 上，用内层 `input` fill。
+- SSN 输入框渲染为掩码值（`***-**-1234`），值断言需兼容掩码（比较末 4 位数字）。
+- DOB 是 MUI X DatePicker：fbch34 的 popper **没有 OK 按钮**，点日格即提交并关闭；年列表 1900–2026；日格的 ARIA role 是 `gridcell` 不是 `button`。fbch19 有 OK 按钮，Page Object 两种路径都处理。
+- Sex/State/Citizenship 是 Autocomplete 风格 combobox：点 input 打不开的（如 Sex）需点字段内 "Open" 按钮再选 `li[role=option]`。
+- 成功 toast 自动消失极快，不可靠；断言以"对话框关闭 + 新患者 tab（`<last>, <first>`）出现"为准。
+- 偶发 `WARNING: POTENTIAL DUPLICATE` 弹窗会阻塞提交；用弹窗自带的 "Create New Patient"（强制创建）处理，见阶段 3 补充说明。
+
+### 阶段 2（create_encounter 切片，2026-09-12，fbch34）
+
+- 创建 encounter 时 `type` 在选 facility 前禁用；选 Inpatient Acute 后 status 自动 = Planned。
+- **必填的 Expected Date/Time**（`#encounters-expDatetime`，掩码 `MM/DD/YYYY hh:mm`）为空时 save 无任何可见错误地保持 disabled——这是最大的隐藏门槛。
+- 新患者的 Guarantor Type 只有 Entity（Guarantor 只有 Mini Reg Guarantor）；后续需要 Self guarantor 时先走 Guarantors tab。
+- Admit 子表单的 Unit / Room/Bed 也是必填，选项依赖 levelOfCare；自动化取第一个选项。
+- 患者已有 In Progress 的 ADT encounter 时，其他 encounter 的 Admit 按钮不渲染（`ACTIVE_ENCOUNTER_BANNED_STATUS`）。
+- Admit 成功后 BNR 立即自动创建（Encounter summary 的 Billing Number ID 与 Accounts (BNR) 首行一致），无需等几分钟。
+
+### 阶段 3（quick_charge 切片，2026-09-12，fbch34）
+
+- Charge Services 的 Account Lookup 按**患者姓名**搜索有效；按 BNR 号搜索返回 0 结果。
+- 打开路径：患者行双击 → BNR Overview → Hospital 子 BNR 行的 "Open"（base 行的同名 link 单元为空，需按文本 Open 过滤）。
+- BNR 详情 Charges tab 的 "Add Charges" 是 **tab**（testid `charge-services-tab-bnr-add-charges`），不是 button；切到该 tab 才渲染 Quick Charge 面板。
+- Quick Charge 行的 textContent 是 **CPT 与描述连写**（`96372THERAPEUTIC ...`），正则 `\b96372\b` 不匹配；用子串匹配。
+- 提交后队列清空、视图停留在 Add Charges；需切到 View Charges（`charge-services-tab-bnr-charge-transactions`）才能看到 `charge-services-transactions-datagrid` 里的 In Process 行。
+- 本次环境 Submit **没有**出现 CDM Conflict / "Error Submitting" 弹窗；代码仍保留防御处理。
+- Create Patient 的提交点击偶发被应用吞掉（对话框不关、无请求、按钮仍 enabled）；step 检测后重按可恢复。
+- 潜在重复弹窗提供 "Create New Patient"（强制创建）按钮：测试数据用唯一姓名 + 新 SSN，直接强制创建即可（不再换数据重试）。
+
+### 阶段 4（coding_complete 切片，2026-09-12，fbch34）
+
+- 首次打开 Coding tab 会弹 "Begin Coding" 确认；点 Begin 后状态变 In Progress。
+- Diagnosis 子 tab 一次渲染两个槽位（Type of Diagnosis 自动分配为 Admit / Principal，字段 disabled）；一个 Save Diagnosis 保存两行。
+- 诊断码是异步 Autocomplete：**输入完整码会被自动填充但不产生可选列表，Save 仍 disabled**；必须少输入最后一个字符逼出 `li[role=option]` 再点选。
+- ADT 子 tab 的 Discharge Disposition 需点铅笔（`svg[data-testid="EditIcon"]`）→ 表单里第 2 个 `input[placeholder="Make Selection"]` → Save（显示 `<值>(Modified)`）。
+- `coding-complete-button`（Complete）把状态置为 Complete；DRG 在本环境为 None，可选。
+
+### 阶段 5（discharge 切片，进行中，2026-09-12，fbch34）
+
+本切片已实现到「CPOE2 出院医嘱」的前置环节，阻塞在 BROWSE ORDERS 面板的
+**Authorizing Provider** 查询：对新创建的患者该字段（MUI Autocomplete）输入 ≥3 字母
+（如 `tes`）后 **不返回任何候选**，Add 按钮因此保持 disabled（计数已为 1）。
+
+已验证事实（fbch34，gyq001）：
+
+- CPOE2 的 rail 按钮 **ORDER ENTRY 只在打开了患者图表（Patient Control 双击 row → URL 带 dbpath）时出现**；从 Registration 患者 tab 的 rail 里没有它。
+- 本构建的 OE **没有任何 data-testid**（kit 文档里的 `cpoe-browse-btn` 等不存在），只能按文本/ARIA 定位；唯一例外是 Add 按钮 `data-testid="browse-order-add-btn"`。
+- BROWSE ORDERS 有两种渲染：分类列表（ExtJS grid 行）与 kit 布局（Medications/Non-Meds 按钮 + 分类树 + Name 网格）。
+  - 非药物分类（ADT）**必须先点 Non-Meds**。
+  - 点分类节点只会过滤 Name 网格；**必须勾选该行的 checkbox**（ADT 出院单的 checkbox id 为 `checkbox-ADTDC301`）Add 计数才会从 0→1。
+  - 订单行文本形如 `frequent Discharge patient ONCE`（Name/Sort/Freq 列），锚定 `^Discharge` 匹配不到。
+- Add 计数为 1 时按钮**仍可能 disabled**：Pre-Add 面板的 Authorizing Provider 为必填（provider 登录有时会预填，本例没有）。
+- ORDER DETAILS（成功后）字段：ADT Instruction / Category / Subcategory / Order Time* / Start Time* / Provider*；Provider 是 type-to-filter combo，**在 ORDER DETAILS 里查 `tes` 能返回候选**（`GATES,DANIEL,MD` 等），说明 Pre-Add 的 Provider 是另一个端点/过滤集。
+- Save 触发的对话框序列：`Screening Error`（Yes）→ `Order Decision Support`（OK）→ `Validation Dialog`（Username 预填 / Password 必须输入，空密码点 OK 是静默 no-op）。
+- Registration 侧：Encounters → 选 In Progress 的行 → `encounterDetails-discharge-button` → Discharge Details 面板显示 `encounters-Discharge-order-message` = "No Order in Place" 且 `encounters-form-save-button`（Discharge Patient）disabled，**证明需要 Active 的出院医嘱**。
+- `PatientCreatePage.pickDob`：日期选择器有时以 year view 打开，双重 toggle 会切回日历视图（已修为幂等）；同名测试数据会触发 POTENTIAL DUPLICATE 弹窗，用其自带 "Create New Patient" 强制创建（`duplicate-patient-create-new-patient-button`）。

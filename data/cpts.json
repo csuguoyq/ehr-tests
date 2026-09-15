@@ -1,0 +1,4 @@
+[
+  { "code": "96372", "description": "Therapeutic injection, subcutaneous", "defaultQty": 10 },
+  { "code": "96374", "description": "Therapeutic infusion, IV", "defaultQty": 10 }
+]
