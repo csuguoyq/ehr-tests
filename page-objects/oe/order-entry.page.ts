@@ -136,7 +136,11 @@ export class OrderEntryPage {
    *    is ticked).
    * Non-Meds is mandatory for ADT (with Medications the list stays empty).
    */
-  async addAdtDischargeOrder(category = "ADT Orders", orderName = "Discharge"): Promise<void> {
+  async addAdtDischargeOrder(
+    category = "ADT Orders",
+    orderName = "Discharge",
+    providerQuery = "34494a"
+  ): Promise<void> {
     await this.clickBtn("Browse");
     await expect(this.page.getByText("BROWSE ORDERS")).toBeVisible({ timeout: 20_000 });
 
@@ -146,46 +150,41 @@ export class OrderEntryPage {
       await nonMeds.click();
     }
 
-    // Category: tree node (either label) or grid row.
-    if (!(await this.clickListEntry(category)) && !(await this.clickListEntry("ADT"))) {
-      await this.clickLeafText(category);
-    }
+    // Category: the tree node is exactly "ADT" on this build. Multi-candidate
+    // list-entry clicks left the Pre-Add footer half-rendered (provider field
+    // without options) — use the verified single sequence, fbch34 2026-09-15.
+    await this.page.getByText("ADT", { exact: true }).first().click();
+    await this.page.waitForTimeout(1_000);
 
-    // Order row: the Name grid's row text is e.g. "frequent Discharge patient
-    // ONCE" (Name / Sort / Freq columns). The checkbox control differs between
-    // builds, so try candidates and verify against the Add counter.
+    // Order row: tick its CHECKBOX directly (verified). The Add counter
+    // becomes 1 and the Pre-Add panel renders the Authorizing Provider field.
     const orderRow = this.page
       .locator("tr.x-grid-row, [role=row]")
       .filter({ hasText: new RegExp(orderName.replace(/\s+/g, "\\s+"), "i") })
       .first();
-    if (await orderRow.count()) {
-      const candidates = [
-        orderRow.locator("input[type=checkbox], [role=checkbox]").first(),
-        orderRow.locator(".x-grid-cell-checkcolumn, .x-grid-checkcolumn").first(),
-        orderRow.locator("td, [role=cell]").first(),
-        orderRow,
-      ];
-      for (const candidate of candidates) {
-        if ((await this.addCounter()) > 0) break;
-        if ((await candidate.count()) === 0) continue;
-        await candidate
-          .click({ timeout: 4_000 })
-          .catch(async () => candidate.evaluate((el: HTMLElement) => el.click()));
-        await this.page.waitForTimeout(400);
-      }
-      if ((await this.addCounter()) === 0) {
-        const html = await orderRow.evaluate((el) => el.outerHTML.slice(0, 500));
-        throw new Error(`勾选 ${orderName} 后 Add 计数仍为 0；行 DOM: ${html}`);
-      }
-    } else {
-      await this.clickLeafText(orderName);
+    await orderRow.waitFor({ state: "visible", timeout: 15_000 });
+    // Tick and VERIFY against the Add counter. The row is a div grid
+    // ([role=cell], no <td>); the checkbox may need a JS click fallback.
+    const tickCandidates = [
+      orderRow.locator("input[type=checkbox], [role=checkbox]").first(),
+      orderRow.locator("[role=cell], td").first(),
+    ];
+    for (const candidate of tickCandidates) {
+      if ((await this.addCounter()) > 0) break;
+      await candidate
+        .click({ timeout: 4_000, force: true })
+        .catch(async () => candidate.evaluate((el: HTMLElement) => el.click()));
+      await this.page.waitForTimeout(1_500);
+    }
+    if ((await this.addCounter()) === 0) {
+      throw new Error(`勾选 ${orderName} 失败：Add 计数仍为 0（checkbox 与 cell 均未生效）`);
     }
 
     const addButton = this.page.getByRole("button", { name: /^Add \([1-9]\d*\)$/ }).last();
     // The pre-Add panel has a required "Authorizing Provider" field; for some
     // logins it is NOT pre-filled and Add stays disabled until one is picked.
     if (!(await addButton.isEnabled().catch(() => false))) {
-      await this.fillAuthorizingProvider();
+      await this.fillAuthorizingProvider(providerQuery);
     }
     try {
       await expect(addButton).toBeEnabled({ timeout: 20_000 });
@@ -209,18 +208,16 @@ export class OrderEntryPage {
   /** Pick the first provider offered in the BROWSE ORDERS pre-Add panel. */
   private async fillAuthorizingProvider(providerQuery = "tes"): Promise<void> {
     const dialog = this.page.locator('[role=dialog]:has-text("BROWSE ORDERS")').last();
-    // The provider input is the dialog's last text input (the first one is the
-    // order search box with placeholder "Search Discharge Orders").
+    // The provider input is the dialog's LAST text input — verified at
+    // runtime (fbch34 2026-09-15): skipping "search"-placeholder inputs
+    // lands on the wrong field and the option list never appears.
+    // The Pre-Add panel renders asynchronously — a fixed 1.5s settle here
+    // mirrors the verified runtime probe; grabbing inputs immediately picks
+    // the order search box and no options ever appear.
+    await this.page.waitForTimeout(1_500);
     const inputs = dialog.locator("input[type=text], input:not([type])");
     const count = await inputs.count();
-    let provider = inputs.nth(count - 1);
-    for (let i = count - 1; i >= 0; i--) {
-      const ph = (await inputs.nth(i).getAttribute("placeholder")) || "";
-      if (!/^search/i.test(ph)) {
-        provider = inputs.nth(i);
-        break;
-      }
-    }
+    const provider = inputs.nth(count - 1);
     await provider.click();
     await provider.fill("");
     await provider.pressSequentially(providerQuery, { delay: 80 });
@@ -228,35 +225,40 @@ export class OrderEntryPage {
     // The option list may be an MUI listbox, an ExtJS boundlist, or appear
     // only after clicking the field's popup trigger. The lookup is async, so
     // wait for the list instead of probing once.
-    const options = this.page.locator('li[role=option], .x-boundlist-item, [role=option]');
-    let visible = await options
+    // The option popup may render ATTACHED but not playwright-"visible"
+    // (zero-size/offscreen popper) — match the verified probe behavior:
+    // wait for ATTACHED options (allTextContents sees them regardless of
+    // visibility), then click by text with a force fallback.
+    const options = this.page.locator('li[role=option], .x-boundlist-item');
+    let attached = await options
       .first()
-      .waitFor({ state: "visible", timeout: 8_000 })
+      .waitFor({ state: "attached", timeout: 8_000 })
       .then(() => true)
       .catch(() => false);
-    if (!visible) {
-      const trigger = dialog
-        .locator('button[aria-label="Open"], .x-form-trigger, [class*=popupIndicator]')
-        .last();
-      if (await trigger.isVisible().catch(() => false)) {
-        await trigger.click().catch(() => undefined);
-        visible = await options
-          .first()
-          .waitFor({ state: "visible", timeout: 8_000 })
-          .then(() => true)
-          .catch(() => false);
-      }
+    if (!attached) {
+      await provider.press("ArrowDown");
+      attached = await options
+        .first()
+        .waitFor({ state: "attached", timeout: 3_000 })
+        .then(() => true)
+        .catch(() => false);
     }
-    if (!visible) {
+    if (!attached) {
+      const dump = await dialog
+        .locator("input")
+        .evaluateAll((els) =>
+          els.map((e) => `${(e as HTMLInputElement).id || "?"}|ph=${(e as HTMLInputElement).placeholder}|v=${(e as HTMLInputElement).value}|vis=${(e as HTMLElement).offsetParent !== null}`).join(" ;; ")
+        )
+        .catch(() => "(no dump)");
       const html = await provider
-        .evaluate((el) => (el.parentElement?.parentElement?.outerHTML ?? "").slice(0, 400))
+        .evaluate((el) => (el.parentElement?.parentElement?.outerHTML ?? "").slice(0, 300))
         .catch(() => "(no html)");
-      throw new Error(`Provider 候选项未出现（query=${providerQuery}）；字段 DOM: ${html}`);
+      throw new Error(`Provider 候选项未出现（query=${providerQuery}）；inputs=[${dump}]；字段 DOM: ${html}`);
     }
 
     const option = options.first();
-    const label = ((await option.innerText()) || "").trim();
-    await option.click();
+    const label = ((await option.textContent()) || "").trim();
+    await option.click({ force: true }).catch(async () => option.evaluate((el: HTMLElement) => el.click()));
     await expect(provider).toHaveValue(label.length ? label : /.+/, { timeout: 10_000 });
   }
 
@@ -383,11 +385,34 @@ export class OrderEntryPage {
   }
 
   /** The order is Active under EXISTING ORDERS (ADT group). */
+  /** True when an Active row for the order already exists in EXISTING ORDERS. */
+  async hasActiveOrder(orderName: string): Promise<boolean> {
+    return this.page
+      .locator(`tr:has-text("${orderName}"):has-text("Active")`)
+      .first()
+      .isVisible()
+      .catch(() => false);
+  }
+
   async expectOrderActive(orderName: string): Promise<void> {
     const existing = this.page.locator("text=EXISTING ORDERS").first();
     await expect(existing).toBeVisible();
-    await expect(
-      this.page.locator(`tr:has-text("${orderName}"):has-text("Active")`).first()
-    ).toBeVisible({ timeout: 30_000 });
+    try {
+      await expect(
+        this.page.locator(`tr:has-text("${orderName}"):has-text("Active")`).first()
+      ).toBeVisible({ timeout: 30_000 });
+    } catch (e) {
+      // Diagnostic: what does the panel actually show (banner? error? row status?)
+      const txt = await this.page.locator("body").innerText();
+      const i = txt.indexOf("EXISTING ORDERS");
+      const panel = i >= 0 ? txt.slice(i, i + 600) : txt.slice(0, 600);
+      const dialogs = await this.page
+        .locator('[role=dialog], .x-window')
+        .allTextContents()
+        .catch(() => []);
+      throw new Error(
+        `医嘱未变 Active。面板：${JSON.stringify(panel)}；弹窗：${JSON.stringify(dialogs.map(d => d.replace(/\s+/g, " ").slice(0, 150)))}`
+      );
+    }
   }
 }

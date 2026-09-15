@@ -13,6 +13,7 @@
 - 每轮只做一个垂直切片；完成后更新 goals.yaml + 三张状态表 + PROJECT.md 已知限制
 - Flow 只编排；Page Object 不写业务 if；Step ≤3 分支；固化执行的运行时禁止调用 AI
 - 选择器以 Page Object 为唯一权威；交互会话里验证的选择器必须沉淀回 Page Object
+- 写/改 Page Object、step 前，先看实现再动手：① 读 skills 文档 `$CCSRC_PATH/skills/ehr-workflow/<模块>/SKILL.md`（按需读其指向的 workflow 文件）与 `ehr-ui/browser-testing`；模块无 skills 覆盖或文档不含目标细节时，直接 grep 源码（`$CCSRC_PATH/ehr/src/<模块>`，搜 label 文本/testid/组件名）确认表单结构、字段、按钮文案与交互路径。CCSRC_PATH 在 `.env` 配置（默认 `../ccsrc`；路径不存在则跳过、退回运行时探测）。源码是草稿、实机是权威：两者不符时以实机为准，并把差异记录进 PROJECT.md
 - 用户要求「按 TC/SZ 号测试」时：先查 [TCS.md](TCS.md)——已固化的直接跑对应 spec；未固化的按 TC 原文执行，完成后登记回 TCS.md
 - 目录按规模阈值调整（见 PROJECT.md「结构与规模阈值」），不预设全量
 

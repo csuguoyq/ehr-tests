@@ -8,7 +8,8 @@
 | quick_charge | QuickChargeFlow | Charge Services | mrn?（按 MRN 直接打开账户，最快最准）, patientName?（缺省复用同次编排生成的患者；与 mrn 二选一）, cpts（默认 96372,96374）, qty（默认 10） | 已通过（mrn 路径 2026-09-15 fbch34 实测） |
 | coding_complete | CodingCompleteFlow | Coding | mrn?（按 MRN 直接打开账户，同 quick_charge）, patientName?, admitDiagnosis（默认 I69.941）, principalDiagnosis（默认 S94.10XD）, drg（默认 182）, severityIllness / riskMortality（默认 1 - Minor）, dischargeDisposition（默认 Home or self-care） | 已通过（drg+mrn 路径 2026-09-15 fbch34 实测） |
 | discharge | DischargeFlow | CPOE2, Registration | lastName, ssn, dischargeDisposition, providerQuery | 已通过（出院医嘱 + Registration Discharge 2026-09-15 fbch34 实测；待 goal 注册 mrn 参数后开放） |
-| billing_billed | BillingFlow | Billing | encounterId | 未开始 |
+| start_billing | StartBillingFlow | Charge Services (Billing tab) | mrn?/patientName?, forceReason（force_bill 用） | 已通过（2026-09-15 fbch34 实测：Start Billing → Bill Now） |
+| force_bill | ForceBillFlow | Charge Services (Billing tab) | mrn?/patientName?, forceReason | 已通过（2026-09-15 fbch34 实测：BNR Edits → Force Submit + 原因 → Force Bill） |
 | claim_submitted | ClaimSubmitFlow | Insurance Claims | encounterId | 未开始 |
 | lookup_account | LookupAccountFlow | Charge Services | mrn（最快最准）/ patientName 二选一 | 只读查询：返回账户行（姓名/DOB/MRN/SSN），可做存在性检查 | 新增 2026-09-15 fbch34 实测 |
 | claim_to_submitted | ClaimToSubmittedFlow | 全部 | planId, cpts, qty | 未开始 |

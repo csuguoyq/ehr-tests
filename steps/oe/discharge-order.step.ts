@@ -10,11 +10,21 @@ const str = (v: unknown, fallback: string) => (typeof v === "string" && v ? v : 
 
 export async function dischargeOrderStep(ctx: EhrContext, params: ResolvedParams): Promise<void> {
   const disposition = str(params.dischargeDisposition, "Home or self-care");
+  // Pre-Add Authorizing Provider is a FIXED choice list with startsWith
+  // filtering (cpoeChoices.providers.authorizing — see OEContext). "34494a"
+  // matches this box's default provider "34494a dstest"; "tes" does NOT
+  // (startsWith, not contains) — the old empty-candidates blocker.
+  const providerQuery = str(params.providerQuery, "34494a");
   const oe = new OrderEntryPage(ctx.page, ctx.env);
-  ctx.log.step("discharge-order", `disposition=${disposition}`);
+  ctx.log.step("discharge-order", `disposition=${disposition} providerQuery=${providerQuery}`);
 
   await oe.openFromRail();
-  await oe.addAdtDischargeOrder();
+  // Idempotent: an Active discharge order from a prior attempt means done.
+  if (await oe.hasActiveOrder("Discharge")) {
+    ctx.log.info("discharge order already Active — skipping placement");
+    return;
+  }
+  await oe.addAdtDischargeOrder("ADT Orders", "Discharge", providerQuery);
   await oe.openOrderDetails("Discharge");
   await oe.setDetailsDisposition(disposition);
   await oe.confirmDetailsDone();

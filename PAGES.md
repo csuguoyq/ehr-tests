@@ -30,6 +30,7 @@
 |---|---|---|---|---|---|---|
 | BNR | rail Charge Services → Account Lookup → 患者 BNR Overview；MUI | P0 | 已通过 | openFromRail, search（按患者名）, openPatientAccount（双击行）, openPatientAccountByMrn（单击姓名格；双击 MRN/SSN 格无效）, openFirstBnrDetail（H 行 Open） | quick_charge | 2026-09-15 |
 | Quick Charge | BNR 详情 Charges tab → Add Charges → Quick Charge 面板 | P0 | 已通过 | openCharges, addCpt（点行入队）, setQuantities, submit（含 CDM/Error 弹窗防御）, expectChargesPosted（断言最新行） | quick_charge | 2026-09-15 |
+| Billing (BNR) | BNR 详情 Billing tab → Overview → Unbilled Charges 卡片 | P0 | 已通过 | open, startBilling（Start Billing → "Select Billing Date Range"（Discharged 默认 All Dates）→ Bill Now）, forceBill（BNR Edits → "Force Submit" + 必填原因 → Force Bill） | start_billing, force_bill | 2026-09-15 |
 
 ## Coding
 
