@@ -7,7 +7,7 @@
 | 模块 | 说明 | 优先级 | 页面数 | 已实现页面 | 状态 | 负责人 | 最后更新 |
 |---|---|---|---|---|---|---|---|
 | Auth | 登录、登出 | P0 | 2 | 1 | 部分实现 | | 2026-09-11 |
-| Patient Control | 门户级患者上下文入口（Cps census；打开图表后 rail 才出现患者级应用） | P0 | 1 | 1 | 部分实现 | | 2026-09-12 |
+| Patient Control | 门户级患者上下文入口（Cps census；打开图表后 rail 才出现患者级应用） | P0 | 1 | 1 | 已覆盖 | | 2026-09-15 |
 | Registration | 患者、Guarantor、Encounter、出院（`ehr/src/Registration`） | P0 | 待调研 | 3 | 部分实现 | | 2026-09-12 |
 | Charge Services | BNR、Charges、Quick Charge（`ehr/src/Charge`） | P0 | 待调研 | 2 | 部分实现 | | 2026-09-12 |
 | Coding | Diagnosis、ADT、DRG（Charge Services 的 Coding tab） | P0 | 待调研 | 2 | 部分实现 | | 2026-09-12 |

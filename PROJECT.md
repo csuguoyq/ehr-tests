@@ -32,6 +32,7 @@
   - 固化执行：TC → spec（goal 编排），`npx playwright test` 跑，报告 = junit/HTML/trace（已有）。运行时无 AI（铁律 5 不变）。
   - 交互执行：AI 会话按 TC 逐步驱动，产出 TC 运行记录（每步 pass/fail + 截图 + host）。记录格式在第一次按 TC 执行的试点时定稿（铁律 8，不预设）。
 - **现状与缺口**：固化执行已有（specs 即证据）；近期缺口是「按已有 TC 交互执行」的首次试点与运行记录格式；远期缺口才是 TC 模板与 `TCS.md` 追溯表（TC/SZ 号 ↔ goal 链 ↔ 覆盖状态）。
+- **首次试点已定稿（2026-09-15，SZ35266）**：TC 执行采用 spec 形态（`specs/SZ35266-admit-date.spec.ts`）——`test.step` 与 TC 步骤 1:1 映射（HTML 报告即运行记录）、`@SZ<id>` 标签、证据截图作为附件挂进报告。fbch34 实测 PASS：Planned encounter → Admit（unit=PHASE2）→ Patient Control census ADMIT DATE 显示 `09/14/2026`（box 时区当天）。
 
 ### 铁律 5 的边界澄清（三目标共同的裁决）
 
@@ -141,6 +142,7 @@ npx playwright test                        # 全量回归
 - 登录 fixture（authedPage）为 test 级：每个 test 完整登录一次；test 数增多后可考虑 worker 级 / storageState 复用（待第二次需要时再抽象）。
 - 本地 `ehr/src` 工作树 ≠ 目标 box 部署构建：`encounters-status-summary`、`encounterDetails-discharge-button` 等 8 个选择器在 fbch34 构建中存在、当前分支源码中没有；`npm run check:selectors` 报告的缺失需逐条人工判断。
 - authedPage 默认 token 登录（`api/auth.ts`），UI 登录仅作兜底与 login spec 的被测对象。
+- box 时区 ≠ 本地时区（fbch34 为美西时间）：日期类断言需按 box 的「今天」判定（见 SZ35266 spec 的 today/yesterday 双候选）。
 
 ### 阶段 2（create_patient 切片，2026-09-12，fbch34）
 

@@ -58,8 +58,10 @@ export class EncounterPage {
    * unit / room-bed style fields whose valid values depend on the box and the
    * level of care — any value satisfies the required-field validator.
    * A field may render no options (choice list empty) — then it is skipped.
+   * Returns the picked option text (null when skipped) so callers can record
+   * what was chosen (e.g. the admitted unit).
    */
-  async pickFirstAutocomplete(name: string): Promise<void> {
+  async pickFirstAutocomplete(name: string): Promise<string | null> {
     const input = this.input(name);
     await expect(input).toBeEnabled();
     await input.click();
@@ -69,7 +71,9 @@ export class EncounterPage {
       await option.click();
       await expect(this.page.locator("li[role=option]")).toHaveCount(0);
       await expect(input).toHaveValue(value);
+      return value;
     }
+    return null;
   }
 
   async clickCreateNewEncounter(): Promise<void> {

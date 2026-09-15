@@ -23,7 +23,9 @@ export async function admitEncounterStep(ctx: EhrContext, params: ResolvedParams
   await encounter.pickAutocomplete("admit-levelOfCare", opts.levelOfCare);
   // Unit and Room/Bed are required too (ENCOUNTER_DETAILS_FORM_CONFIGS.ADMIT);
   // their choice lists depend on the level of care, so take the first valid one.
-  await encounter.pickFirstAutocomplete("admit-admitUnit");
+  // The picked unit goes to scratch — TC/census flows need to know where the
+  // patient was admitted (e.g. SZ35266 Patient Control ADMIT DATE check).
+  ctx.scratch.admitUnit = await encounter.pickFirstAutocomplete("admit-admitUnit");
   await encounter.pickFirstAutocomplete("admit-admitRoomBed");
   await encounter.save("Admit Patient");
   await encounter.expectAdmitted();

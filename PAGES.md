@@ -6,7 +6,7 @@
 
 | 页面 | 路由 | 优先级 | 状态 | 已实现动作 | 用于 Flow | 最后验证 |
 |---|---|---|---|---|---|---|
-| Patient Control | `/Cps`（webtoken 后门户落地；PO 在 `page-objects/` 根） | P0 | 已接入 Flow | open, search, openChart | discharge | 2026-09-12 |
+| Patient Control | `/Cps`（webtoken 后门户落地；PO 在 `page-objects/` 根） | P0 | 已通过 | open, search, openChart, openUnit, censusRow, findCensusRow（跨页翻页） | discharge, SZ35266 | 2026-09-15 |
 
 ## Auth
 
