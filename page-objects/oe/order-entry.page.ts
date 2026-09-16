@@ -348,24 +348,32 @@ export class OrderEntryPage {
       .waitFor({ state: "visible", timeout: 20_000 })
       .catch(() => {});
     await this.handleSaveDialogs();
-    // The "Save Order — printed to COMPROOM" MUI receipt is modal and appears
-    // LATE — the print roundtrip on fbch34 takes 15-35s (observed 2026-09-15)
-    // — and it blocks every further navigation until dismissed. Wait long.
-    const receiptText = this.page.getByText(/printed to COMPROOM/i).first();
-    if (
-      await receiptText
-        .waitFor({ state: "visible", timeout: 60_000 })
-        .then(() => true)
-        .catch(() => false)
-    ) {
-      const okBtn = this.page
-        .locator(".MuiDialog-root:visible, [role=dialog]:visible")
-        .filter({ hasText: /printed to COMPROOM/i })
-        .getByRole("button", { name: "OK" })
-        .first();
-      await expect(okBtn).toBeVisible({ timeout: 10_000 });
-      await okBtn.click();
-      await receiptText.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+    // The "Save Order — printed to COMPROOM" receipt is modal when it
+    // appears, but it does not always appear (and can take 15-35s) — poll
+    // for EITHER the receipt (dismiss it) or the order going Active, and
+    // exit as soon as one shows (fbch34 2026-09-16: a blind 60s wait here
+    // stalled every run for a minute).
+    const deadline = Date.now() + 45_000;
+    let receiptShown = false;
+    while (Date.now() < deadline) {
+      if (await this.hasActiveOrder("Discharge")) return;
+      const receiptText = this.page.getByText(/printed to COMPROOM/i).first();
+      if (await receiptText.isVisible().catch(() => false)) {
+        receiptShown = true;
+        const okBtn = this.page
+          .locator(".MuiDialog-root:visible, [role=dialog]:visible")
+          .filter({ hasText: /printed to COMPROOM/i })
+          .getByRole("button", { name: "OK" })
+          .first();
+        await okBtn.click().catch(() => {});
+        await receiptText.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+        break;
+      }
+      await this.page.waitForTimeout(500);
+    }
+    if (receiptShown) {
+      // one more sweep in case follow-up windows surfaced after the receipt
+      await this.handleSaveDialogs();
     }
   }
 

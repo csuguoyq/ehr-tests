@@ -2,6 +2,7 @@
 // patient's tab in Registration (search by SSN — a primary criterion, so a
 // single value is enough — then click the result's name link).
 
+import { expect } from "@playwright/test";
 import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { RegistrationAppPage } from "../../page-objects/registration/registration-app.page";
@@ -24,7 +25,10 @@ export async function openPatientRegistrationStep(
   // census deep link, which rebuilds the full rail.
   if (!(await app.railButton("REGISTRATION").isVisible().catch(() => false))) {
     await ctx.page.goto(`${ctx.env.baseUrl}/Cps`, { waitUntil: "domcontentloaded" });
-    await ctx.page.waitForTimeout(2_000);
+    // Wait for the rail to actually render instead of a fixed sleep.
+    await expect
+      .poll(() => app.railButton("REGISTRATION").isVisible().catch(() => false), { timeout: 20_000 })
+      .toBe(true);
   }
   await app.open("REGISTRATION");
 
