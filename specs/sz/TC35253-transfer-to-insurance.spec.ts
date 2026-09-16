@@ -15,12 +15,12 @@
 //
 //   npx playwright test specs/SZ35253-transfer-to-insurance.spec.ts
 
-import { test, expect } from "../fixtures/auth.fixture";
-import { runGoal, createEhrContext } from "../src/executor/runner";
-import { loadEhrEnv } from "../src/types/ehr-context";
-import { generateLastName } from "../steps/registration/patient-data";
-import { BillingPage } from "../page-objects/charge/billing.page";
-import { ClaimsPage } from "../page-objects/charge/claims.page";
+import { test, expect } from "../../fixtures/auth.fixture";
+import { runGoal, createEhrContext } from "../../src/executor/runner";
+import { loadEhrEnv } from "../../src/types/ehr-context";
+import { generateLastName } from "../../steps/registration/patient-data";
+import { BillingPage } from "../../page-objects/charge/billing.page";
+import { ClaimsPage } from "../../page-objects/charge/claims.page";
 
 test(
   "SZ35253 T1+T2: 0001 转账后 Guarantor Balance 清零且生成保险 claim（host 见 .env）",

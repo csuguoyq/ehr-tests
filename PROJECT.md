@@ -32,7 +32,7 @@
   - 固化执行：TC → spec（goal 编排），`npx playwright test` 跑，报告 = junit/HTML/trace（已有）。运行时无 AI（铁律 5 不变）。
   - 交互执行：AI 会话按 TC 逐步驱动，产出 TC 运行记录（每步 pass/fail + 截图 + host）。记录格式在第一次按 TC 执行的试点时定稿（铁律 8，不预设）。
 - **现状与缺口**：固化执行已有（specs 即证据）；TC 执行路由已建（`TCS.md`，首条 TC35266）；远期缺口是 AI 生成 TC 的词表化模板（`tcs/` 目录随首条 AI 生成 TC 落地）。
-- **首次试点已定稿（2026-09-15，SZ35266）**：TC 执行采用 spec 形态（`specs/SZ35266-admit-date.spec.ts`）——`test.step` 与 TC 步骤 1:1 映射（HTML 报告即运行记录）、`@SZ<id>` 标签、证据截图作为附件挂进报告。fbch34 实测 PASS：Planned encounter → Admit（unit=PHASE2）→ Patient Control census ADMIT DATE 显示 `09/14/2026`（box 时区当天）。
+- **首次试点已定稿（2026-09-15，SZ35266）**：TC 执行采用 spec 形态（`specs/sz/TC35266-admit-date.spec.ts`）——`test.step` 与 TC 步骤 1:1 映射（HTML 报告即运行记录）、`@SZ<id>` 标签、证据截图作为附件挂进报告。fbch34 实测 PASS：Planned encounter → Admit（unit=PHASE2）→ Patient Control census ADMIT DATE 显示 `09/14/2026`（box 时区当天）。
 
 ### 铁律 5 的边界澄清（三目标共同的裁决）
 
@@ -170,7 +170,7 @@ npx playwright test                        # 全量回归
   消化 Unsaved Changes 弹窗。
 - **Coding ADT 子页**：编辑表单的 Admitting/Attending Provider 必填（选 34494a）；
   disposition 预填时 placeholder 选择器不可见，需条件分支。
-- SZ35474 TC01/TC02 断言已固化（`specs/SZ35474-claim-totals.spec.ts`），待服务器侧
+- SZ35474 TC01/TC02 断言已固化（`specs/sz/TC35474-claim-totals.spec.ts`），待服务器侧
   claim 管线可用后即可端到端回归。
 - **SZ35253 结论修正（2026-09-16，用户录制驱动）**：此前"缺陷复现"实为自动化操作
   缺失——①患者须有 Person(Self) 担保人（Entity "Mini Reg Guarantor" 匹配不到保险，

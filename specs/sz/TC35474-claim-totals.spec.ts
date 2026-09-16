@@ -13,11 +13,11 @@
 //
 //   npx playwright test specs/SZ35474-claim-totals.spec.ts
 
-import { test, expect } from "../fixtures/auth.fixture";
-import { runGoal } from "../src/executor/runner";
-import { loadEhrEnv } from "../src/types/ehr-context";
-import { generateLastName } from "../steps/registration/patient-data";
-import { ClaimsPage } from "../page-objects/charge/claims.page";
+import { test, expect } from "../../fixtures/auth.fixture";
+import { runGoal } from "../../src/executor/runner";
+import { loadEhrEnv } from "../../src/types/ehr-context";
+import { generateLastName } from "../../steps/registration/patient-data";
+import { ClaimsPage } from "../../page-objects/charge/claims.page";
 
 test(
   "SZ35474 TC01+TC02: void→rebill 链后 Totals 只计非 Closed claim（host 见 .env）",

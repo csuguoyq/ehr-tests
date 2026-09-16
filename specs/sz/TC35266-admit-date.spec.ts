@@ -15,10 +15,10 @@
 //
 //   npx playwright test specs/SZ35266-admit-date.spec.ts
 
-import { test, expect } from "../fixtures/auth.fixture";
-import { runGoal, createEhrContext } from "../src/executor/runner";
-import { PatientControlPage } from "../page-objects/patient-control.page";
-import { generateLastName, generateSsn } from "../steps/registration/patient-data";
+import { test, expect } from "../../fixtures/auth.fixture";
+import { runGoal, createEhrContext } from "../../src/executor/runner";
+import { PatientControlPage } from "../../page-objects/patient-control.page";
+import { generateLastName, generateSsn } from "../../steps/registration/patient-data";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const fmt = (d: Date) => `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()}`;
