@@ -28,9 +28,11 @@ test(
   async ({ authedPage }) => {
     test.setTimeout(900_000); // discharge → bill → insurance → adjustment
     const lastName = generateLastName();
+    // Self-pay prerequisite (TC35253): NO insurance at creation — pass
+    // insurance:false; the insurance is registered later by the transfer flow.
     await runGoal(authedPage, "create_encounter", {
       preset: "inpatient_acute_admit",
-      params: { lastName, levelOfCare: "Med-Surg" },
+      params: { lastName, levelOfCare: "Med-Surg", insurance: false },
     });
     await runGoal(authedPage, "quick_charge", {
       params: { patientName: lastName, cpts: "96372,96374", qty: 10 },
@@ -47,12 +49,9 @@ test(
     expect(transferred, "prerequisite: non-zero guarantor balance transferred").toBeGreaterThan(0);
 
     // T1 (TC expected): the guarantor card is zeroed by the transfer.
-    //
-    // ⚠️ 2026-09-15 fbch34 实测复现 SZ35253 缺陷表现（修复 SD416964 未部署）：
-    // force bill 自动挂 Policy Discount（True Self Pay）后 guarantor balance
-    // = $13,312，而 0001 transfer 的 Amount 锁定为折扣前责任额 $16,640 ——
-    // 超额转账被拒：余额不变、Insurance Claims 不生成 claim。以下断言按 TC
-    // 原文 Expected 编写，在该 box 上预期 FAIL（缺陷证据）；修复部署后转绿。
+    // 2026-09-16 fbch34 复核：按手工录制路径（Person 担保人 + 保险 Assign 到
+    // BNR + 0001/Balance Type=Guarantor）转账生效——guarantor 归零、claim
+    // 生成 $16,640。此前"缺陷复现"实为操作缺失（保险未 Assign），见 TCS.md。
     const billing = new BillingPage(authedPage, loadEhrEnv());
     await expect
       .poll(async () => billing.readGuarantorBalance(), { timeout: 30_000 })
@@ -61,6 +60,7 @@ test(
     // T2 (TC expected): the transfer created a claim carrying the transferred
     // amount for the registered payer.
     const claims = new ClaimsPage(authedPage, loadEhrEnv());
+    await claims.expand();
     await expect
       .poll(async () => (await claims.readRows()).length, { timeout: 30_000 })
       .toBeGreaterThanOrEqual(1);

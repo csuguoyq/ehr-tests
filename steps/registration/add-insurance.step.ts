@@ -41,34 +41,30 @@ export async function addInsuranceStep(ctx: EhrContext, params: ResolvedParams):
     | { lastName?: string; firstName?: string; dob?: string; sex?: string }
     | undefined;
   const today = new Date();
-  const mmddyyyy = `${String(today.getMonth() + 1).padStart(2, "0")}/${String(today.getDate()).padStart(2, "0")}/${today.getFullYear()}`;
-  await insurance.pickOption("Insurance Type", /Medical/i);
+  // const localMmddyyyy = `${String(today.getMonth() + 1).padStart(2, "0")}/${String(today.getDate()).padStart(2, "0")}/${today.getFullYear()}`;
+  await insurance.pickOption("Insurance Type", /Medical/i, "Medical");
   await insurance.fillText("Member ID or #", `TB${stamp}`);
-  await insurance.fillDate("Effective Date", mmddyyyy);
-  await insurance.pickOption("Relationship to Subscriber", /Self/i);
+  await insurance.fillToday("Effective Date");
+  await insurance.pickOption("Relationship to Subscriber", /Self/i, "Self");
   // Subscriber mirrors the patient (Self).
   await insurance.fillText("Subscriber ID", `TB${stamp}`);
   await insurance.fillText("Subscriber First Name", patient?.firstName || "Auto");
   await insurance.fillText("Subscriber Last Name", patient?.lastName || "Testbot");
   await insurance.fillText("Subscriber Address", "123 Main St");
   await insurance.fillText("Subscriber City", "San Diego");
-  await insurance.pickOption("Subscriber State", /California/i);
+  await insurance.pickOption("Subscriber State", /California/i, "CA");
   await insurance.fillText("Subscriber Zip", "92101");
-  await insurance.fillDate("Subscriber D.O.B.", patient?.dob || "01/01/1990");
-  await insurance.pickOption("Subscriber Sex", /Female|Male/i);
-  await insurance.pickOption("Subscriber Country", /United States/i);
+  await insurance.fillToday("Subscriber D.O.B.");
+  await insurance.pickOption("Subscriber Sex", /Female|Male/i, String(patient?.sex || "Male")[0]);
+  await insurance.pickOption("Subscriber Country", /United States/i, "United States");
   // The phone field arrives pre-filled with a PARTIAL invalid value.
   await insurance.fillPhone("Subscriber Phone", "5551234567");
 
-  const save = page.getByRole("button", { name: "Save and Close", exact: true }).first();
-  const saveFallback = page.getByRole("button", { name: "Save", exact: true }).first();
-  if (await save.isVisible().catch(() => false)) {
-    await expect(save).toBeEnabled({ timeout: 30_000 });
-    await save.click();
-  } else {
-    await expect(saveFallback).toBeEnabled({ timeout: 30_000 });
-    await saveFallback.click();
-  }
+  // Toolbar order is [Save, Save and Close]; "Save" is the proven path —
+  // "Save and Close" stays disabled in some states (fbch34 2026-09-16).
+  const save = page.getByRole("button", { name: "Save", exact: true }).first();
+  await expect(save).toBeEnabled({ timeout: 30_000 });
+  await save.click();
   // Saving from the toolbar can leave the form open; the next navigation then
   // pops an "Unsaved Changes" confirm — resolve it with Save Changes.
   const unsavedAfterSave = page

@@ -17,6 +17,7 @@ import { codingCompleteStep } from "../steps/charge/coding-complete.step";
 import { startBillingStep } from "../steps/charge/start-billing.step";
 import { forceBillStep } from "../steps/charge/force-bill.step";
 import { addInsuranceStep } from "../steps/registration/add-insurance.step";
+import { assignInsuranceBnrStep } from "../steps/registration/assign-insurance-bnr.step";
 import { addAdjustmentStep } from "../steps/charge/add-adjustment.step";
 
 export const TransferToInsuranceFlow: FlowDefinition = {
@@ -37,10 +38,14 @@ export const TransferToInsuranceFlow: FlowDefinition = {
     await codingCompleteStep(ctx, params);
     await startBillingStep(ctx, params);
     await forceBillStep(ctx, params);
-    // 2. register the insurance AFTER billing (no claim exists yet)
+    // 2. register the insurance AFTER billing, then **assign it to the BNR**
+    //    (SZ35253 manual recording 2026-09-16: an unassigned coverage never
+    //    produces claims — this was the missing piece of earlier runs)
     await openPatientRegistrationStep(ctx, params);
     await addInsuranceStep(ctx, params);
-    // 3. transfer the whole guarantor balance to the insurance (0001)
+    await assignInsuranceBnrStep(ctx, params);
+    // 3. transfer the whole guarantor balance to the insurance (0001,
+    //    Balance Type = Guarantor per the recording)
     await openBnrDetailStep(ctx, params);
     await addAdjustmentStep(ctx, params);
   },

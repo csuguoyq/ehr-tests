@@ -142,7 +142,7 @@ npx playwright test                        # 全量回归
 - 登录 fixture（authedPage）为 test 级：每个 test 完整登录一次；test 数增多后可考虑 worker 级 / storageState 复用（待第二次需要时再抽象）。
 - 本地 `ehr/src` 工作树 ≠ 目标 box 部署构建：`encounters-status-summary`、`encounterDetails-discharge-button` 等 8 个选择器在 fbch34 构建中存在、当前分支源码中没有；`npm run check:selectors` 报告的缺失需逐条人工判断。
 - authedPage 默认 token 登录（`api/auth.ts`），UI 登录仅作兜底与 login spec 的被测对象。
-- box 时区 ≠ 本地时区（fbch34 为美西时间）：日期类断言需按 box 的「今天」判定（见 SZ35266 spec 的 today/yesterday 双候选）。
+- box 时区 ≠ 本地时区（fbch34 为美西时间）：日期类断言需按 box 的「今天」判定（见 SZ35266 spec 的 today/yesterday 双候选）；2026-09-16 复跑实测 census ADMIT DATE = 09/15/2026（命中 yesterday 候选）。
 
 ### 切片（2026 claim TC：SZ35253 + SZ35474，2026-09-16，fbch34）
 
@@ -172,6 +172,12 @@ npx playwright test                        # 全量回归
   disposition 预填时 placeholder 选择器不可见，需条件分支。
 - SZ35474 TC01/TC02 断言已固化（`specs/SZ35474-claim-totals.spec.ts`），待服务器侧
   claim 管线可用后即可端到端回归。
+- **SZ35253 结论修正（2026-09-16，用户录制驱动）**：此前"缺陷复现"实为自动化操作
+  缺失——①患者须有 Person(Self) 担保人（Entity "Mini Reg Guarantor" 匹配不到保险，
+  Available Coverages 恒为 None）；②保险登记后须在 Accounts (BNR)→Edit→**Assign**
+  分配给 BNR。两条补上后 0001 转账正常：guarantor 归零、claim $16,640 Ready to
+  Submit，TC35253 回归 **PASS**。create_encounter 现默认加 Self 担保人+保险
+  （`insurance:false` = 自费模式），claim_to_submitted 链同步获得 Assign 步骤。
 
 ### 阶段 2（create_patient 切片，2026-09-12，fbch34）
 
@@ -233,7 +239,7 @@ disabled（计数已为 1）。
   - 点分类节点只会过滤 Name 网格；**必须勾选该行的 checkbox**（ADT 出院单的 checkbox id 为 `checkbox-ADTDC301`）Add 计数才会从 0→1。
   - 订单行文本形如 `frequent Discharge patient ONCE`（Name/Sort/Freq 列），锚定 `^Discharge` 匹配不到。
 - Add 计数为 1 时按钮**仍可能 disabled**：Pre-Add 面板的 Authorizing Provider 为必填（provider 登录有时会预填，本例没有）。
-- ORDER DETAILS（成功后）字段：ADT Instruction / Category / Subcategory / Order Time* / Start Time* / Provider*；Provider 是 type-to-filter combo，**在 ORDER DETAILS 里查 `tes` 能返回候选**（`GATES,DANIEL,MD` 等），说明 Pre-Add 的 Provider 是另一个端点/过滤集。
+- ORDER DETAILS（成功后）字段：ADT Instruction / Category / Subcategory / Order Time* / Start Time* / Provider\*；Provider 是 type-to-filter combo，**在 ORDER DETAILS 里查 `tes` 能返回候选**（`GATES,DANIEL,MD` 等），说明 Pre-Add 的 Provider 是另一个端点/过滤集。
 - Save 触发的对话框序列：`Screening Error`（Yes）→ `Order Decision Support`（OK）→ `Validation Dialog`（Username 预填 / Password 必须输入，空密码点 OK 是静默 no-op）。
 - Registration 侧：Encounters → 选 In Progress 的行 → `encounterDetails-discharge-button` → Discharge Details 面板显示 `encounters-Discharge-order-message` = "No Order in Place" 且 `encounters-form-save-button`（Discharge Patient）disabled，**证明需要 Active 的出院医嘱**。
 - **2026-09-15 全流程出院已打通**：医嘱 Active 后同一 message 元素翻成 "Order in Place"（带绿勾）但**仍留在 DOM**——断言必须查文本而非 toHaveCount(0)，否则永远失败（这就是本切片此前卡住的最后原因）。保存按钮 "Discharge Patient" 在面板底部（`encounters-form-save-button`），Playwright 自动滚动可点。

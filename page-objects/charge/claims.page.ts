@@ -90,6 +90,16 @@ export class ClaimsPage {
 
   // ---- Claim table (SZ35474/TC35474 surface) --------------------------------
 
+  /** Expand the Insurance Claims accordion (it ships collapsed). */
+  async expand(): Promise<void> {
+    const summary = this.claimsSection.locator(".MuiAccordionSummary-root").first();
+    await expect(summary).toBeVisible({ timeout: 20_000 });
+    if ((await this.claimGrid.count()) === 0 || !(await this.claimGrid.isVisible().catch(() => false))) {
+      await summary.click();
+    }
+    await expect(this.claimGrid).toBeVisible({ timeout: 20_000 });
+  }
+
   /** The kebab ("More") button of a claim row — the row's only real button. */
   rowMenuButton(row: Locator): Locator {
     return row.getByRole("button");

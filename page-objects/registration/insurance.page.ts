@@ -84,8 +84,13 @@ export class InsurancePage {
     throw new Error(`field "${label}": no fillable input found`);
   }
 
-  /** Pick an option from a "Make Selection"-style combobox field. */
-  async pickOption(label: string, optionText: RegExp): Promise<void> {
+  /**
+   * Pick an option from a "Make Selection"-style combobox field. Verifies
+   * the selection actually landed (multi-select chips can drop on Escape —
+   * flaky on fbch34) and retries up to 3 times.
+   */
+  async pickOption(label: string, optionText: RegExp, expectText?: string): Promise<void> {
+    const verify = expectText ?? optionText.source.replace(/\|\^|\$|\/i/g, "");
     const labels = await this.labelBoxes(label).all();
     for (const labelBox of labels) {
       const inputs = labelBox.locator("xpath=following::input | following::textarea");
@@ -98,31 +103,53 @@ export class InsurancePage {
           continue;
         }
         if ((await candidate.inputValue()) !== "") return;
-        await candidate.click();
-        const option = this.page.locator("li[role=option]", { hasText: optionText }).first();
-        await expect(option).toBeVisible({ timeout: 10_000 });
-        await option.click();
-        // Multi-select variants (Insurance Type) keep the list open; Escape
-        // closes the popper. Never click a page-wide "Close" — this form has
-        // other Close buttons and one of them dismisses the whole form
-        // (fbch34 2026-09-16: the form got submitted by that stray click).
-        await candidate.press("Escape");
-        await this.page
-          .locator("li[role=option]")
-          .first()
-          .waitFor({ state: "hidden", timeout: 5_000 })
-          .catch(() => {});
-        return;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          await candidate.click();
+          const option = this.page.locator("li[role=option]", { hasText: optionText }).first();
+          await expect(option, `option for "${label}" not listed`).toBeVisible({ timeout: 10_000 });
+          await option.click();
+          // Multi-select variants (Insurance Type) keep the list open; Escape
+          // closes the popper. Never click a page-wide "Close" — this form
+          // has other Close buttons and one dismisses the whole form.
+          await candidate.press("Escape");
+          await this.page
+            .locator("li[role=option]")
+            .first()
+            .waitFor({ state: "hidden", timeout: 5_000 })
+            .catch(() => {});
+          const wrapper = candidate.locator("xpath=ancestor::div[contains(@class,'MuiInputBase') or contains(@class,'MuiFormControl')][1]");
+          const shown = (await wrapper.innerText().catch(() => "")) + (await candidate.inputValue().catch(() => ""));
+          if (shown.toLowerCase().includes(verify.toLowerCase())) return;
+        }
+        throw new Error(`field "${label}": selection "${verify}" did not stick after 3 attempts`);
       }
     }
     throw new Error(`field "${label}": no pickable input found`);
   }
 
-  /** Type a masked date (MM/DD/YYYY) into a CciDatePicker field. */
-  async fillDate(label: string, mmddyyyy: string): Promise<void> {
-    const input = await this.visibleInput(label);
-    await input.click();
-    await input.pressSequentially(mmddyyyy, { delay: 40 });
+  /**
+   * Set a date field to TODAY exactly as the manual recording does
+   * (SZ35253.manual.ts): open the picker, double-click the today cell
+   * ("Choose date, selected date is …"), which commits the box-local today —
+   * typing into the masked input proved unreliable (value never persisted).
+   */
+  async fillToday(label: string): Promise<void> {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const labelBox = this.page
+      .locator(".label-container")
+      .filter({ hasText: new RegExp(`^\\s*${escaped}\\s*\\*?\\s*$`) })
+      .first();
+    const wrapper = labelBox.locator("xpath=following::div[.//input][1]");
+    const input = wrapper.locator("input").first();
+    if ((await input.inputValue().catch(() => "")) !== "") return;
+    const cal = wrapper.getByRole("button", { name: /Choose date/ }).first();
+    await expect(cal).toBeVisible({ timeout: 10_000 });
+    await cal.click();
+    const today = this.page.getByRole("button", { name: /Choose date, selected date is/ }).first();
+    await expect(today).toBeVisible({ timeout: 10_000 });
+    await today.dblclick();
+    await this.page.keyboard.press("Escape");
+    await expect(input, `date "${label}" was not set`).not.toHaveValue("", { timeout: 10_000 });
   }
 
   /** Replace a masked phone input's content digit by digit. */

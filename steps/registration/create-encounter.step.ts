@@ -30,12 +30,15 @@ export async function createEncounterStep(ctx: EhrContext, params: ResolvedParam
     );
   }
 
+  // Default: no in-form guarantor pick — a Person (Self) guarantor is added
+  // on the Guarantors tab by the flow (Entity "Mini Reg Guarantor" cannot
+  // match insurance coverage; SZ35253 manual recording 2026-09-16).
   const opts = {
     facility: str(params.facility, "San Diego Medical Center - Cove Community Hospital"),
     encounterType: str(params.encounterType, "Inpatient Acute"),
     expectedDatetime: str(params.expectedDatetime, await expectedDatetime(ctx)),
-    guarantorType: str(params.guarantorType, "Entity"),
-    guarantor: str(params.guarantor, "Mini Reg Guarantor"),
+    guarantorType: str(params.guarantorType, "skip"),
+    guarantor: str(params.guarantor, "skip"),
     admitType: str(params.admitType, "Elective"),
   };
 
@@ -49,8 +52,15 @@ export async function createEncounterStep(ctx: EhrContext, params: ResolvedParam
   await encounter.pickAutocomplete("type", opts.encounterType);
   await encounter.fillExpectedDatetime(opts.expectedDatetime);
   await encounter.pickAutocomplete("admitType", opts.admitType);
-  await encounter.pickAutocomplete("guarantorType", opts.guarantorType);
-  await encounter.pickAutocomplete("guarantor", opts.guarantor);
+  // guarantorType "skip" → leave the form defaults untouched (used when a
+  // real Person guarantor was added on the Guarantors tab — Entity "Mini Reg
+  // Guarantor" cannot match insurance, SZ35253 manual recording 2026-09-16).
+  if (opts.guarantorType !== "skip") {
+    await encounter.pickAutocomplete("guarantorType", opts.guarantorType);
+  }
+  if (opts.guarantor !== "skip") {
+    await encounter.pickAutocomplete("guarantor", opts.guarantor);
+  }
   await encounter.save("Create Encounter");
   await encounter.expectStatusSummary("Planned");
 }

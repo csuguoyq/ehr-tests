@@ -8,7 +8,6 @@ import type { FlowDefinition } from "../src/types/flow";
 import { openRegistrationStep } from "../steps/registration/registration-open.step";
 import { createPatientStep } from "../steps/registration/create-patient.step";
 import { addGuarantorSelfStep } from "../steps/registration/add-guarantor-self.step";
-import { addInsuranceStep } from "../steps/registration/add-insurance.step";
 import { createEncounterStep } from "../steps/registration/create-encounter.step";
 import { admitEncounterStep } from "../steps/registration/admit-encounter.step";
 import { waitForBnrStep } from "../steps/registration/wait-bnr.step";
@@ -21,6 +20,7 @@ import { openPatientRegistrationStep } from "../steps/registration/open-patient-
 import { dischargeEncounterStep } from "../steps/registration/discharge-encounter.step";
 import { startBillingStep } from "../steps/charge/start-billing.step";
 import { forceBillStep } from "../steps/charge/force-bill.step";
+import { assignInsuranceBnrStep } from "../steps/registration/assign-insurance-bnr.step";
 import { submitClaimStep } from "../steps/charge/submit-claim.step";
 
 export const ClaimToSubmittedFlow: FlowDefinition = {
@@ -28,14 +28,17 @@ export const ClaimToSubmittedFlow: FlowDefinition = {
   description:
     "端到端：新患者 → Inpatient Acute admit+BNR → Quick Charge → Coding Complete → 出院医嘱 → 出院 → Start Billing（必要时 Force Bill）→ Claim Submitted",
   async execute(ctx, params) {
-    // 1. patient + insurance (BEFORE billing: SZ33989 — only BNRs with an
-    //    assigned insurance generate claims) + Inpatient Acute + admit + BNR
+    // 1. patient + guarantor + insurance + Inpatient Acute + admit + BNR
+    //    (guarantor/insurance are create_encounter defaults now; assign to
+    //    the BNR happens later — see assign step)
     await openRegistrationStep(ctx, params);
     await createPatientStep(ctx, params);
-    await addInsuranceStep(ctx, params);
     await createEncounterStep(ctx, params);
     await admitEncounterStep(ctx, params);
     await waitForBnrStep(ctx, params);
+    // Assign the coverage to the BNR — an unassigned coverage never produces
+    // claims (SZ35253 manual recording, fbch34 2026-09-16).
+    await assignInsuranceBnrStep(ctx, params);
     // 2. quick charges on the fresh BNR
     await openBnrDetailStep(ctx, params);
     await quickChargeStep(ctx, params);

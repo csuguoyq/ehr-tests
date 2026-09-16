@@ -17,5 +17,5 @@
 
 
 | void_claim_rebill | VoidClaimRebillFlow | Charge Services (Billing/Claims) | mrn?/patientName?, forceReason | 已实现（fbch34 2026-09-16）：kebab → Void Claim → 重 billing → 重 Submit；端到端依赖 claim 存在，见 TCS.md SZ35474 |
-| transfer_to_insurance | TransferToInsuranceFlow | Registration, CPOE2, Billing | ssn?/lastName?, planId, transactionCode(0001), amount?(默认全额), notes? | 已实现（fbch34 2026-09-16）：出院→计费（自费落 guarantor 卡）→补保险→0001 转账；SZ35253 缺陷复现见 TCS.md |
+| transfer_to_insurance | TransferToInsuranceFlow | Registration, CPOE2, Billing | ssn?/lastName?, planId, transactionCode(0001), balanceType(Guarantor), amount?(默认全额), notes? | **已通过**（fbch34 2026-09-16，SZ35253 回归 PASS）：出院→计费→补保险→Assign 到 BNR→0001 转账（guarantor 归零 + claim 生成）。前置：患者须有 Person 担保人且保险已 Assign（见 TCS.md） |
 目标按需增加，不预设全量。参数 schema 见 `goals.yaml`。

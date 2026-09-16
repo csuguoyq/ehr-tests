@@ -15,6 +15,9 @@ export async function addAdjustmentStep(ctx: EhrContext, params: ResolvedParams)
   const billing = new BillingPage(ctx.page, ctx.env);
   const adjustments = new AdjustmentsPage(ctx.page, ctx.env);
   const code = str(params.transactionCode, "0001");
+  // SZ35253 manual recording: Balance Type stays **Guarantor** for the
+  // patient→insurance transfer (selected explicitly, not left to default).
+  const balanceType = str(params.balanceType, "Guarantor");
   const notes = str(params.notes, "Testbot automation: transfer to insurance");
 
   ctx.log.step("add-adjustment", `Billing tab → Add Adjustment (code ${code})`);
@@ -30,6 +33,7 @@ export async function addAdjustmentStep(ctx: EhrContext, params: ResolvedParams)
 
   await adjustments.openAddDialog();
   await adjustments.pickField("Transaction Code", new RegExp(`${code} \\(`));
+  await adjustments.pickField("Balance Type", new RegExp(`^${balanceType}$`));
   // TRANSFER-type codes auto-fill the Amount with the full balance and lock
   // the input (fbch34 2026-09-16) — use the locked value when present.
   amount = await adjustments.resolveAmount(amount);

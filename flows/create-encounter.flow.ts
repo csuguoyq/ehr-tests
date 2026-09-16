@@ -6,6 +6,8 @@ import type { FlowDefinition } from "../src/types/flow";
 import { openRegistrationStep } from "../steps/registration/registration-open.step";
 import { openPatientRegistrationStep } from "../steps/registration/open-patient-registration.step";
 import { createPatientStep } from "../steps/registration/create-patient.step";
+import { addGuarantorSelfStep } from "../steps/registration/add-guarantor-self.step";
+import { addInsuranceStep } from "../steps/registration/add-insurance.step";
 import { createEncounterStep } from "../steps/registration/create-encounter.step";
 import { admitEncounterStep } from "../steps/registration/admit-encounter.step";
 import { waitForBnrStep } from "../steps/registration/wait-bnr.step";
@@ -22,6 +24,14 @@ export const CreateEncounterFlow: FlowDefinition = {
     } else {
       await openRegistrationStep(ctx, params);
       await createPatientStep(ctx, params);
+      // Defaults (SZ35253 manual recording + user direction): a Person (Self)
+      // guarantor AND an insurance plan — Entity "Mini Reg Guarantor" cannot
+      // match insurance, and an uncovered BNR never produces claims. Pass
+      // insurance: false (self-pay) when the scenario needs an uncovered BNR.
+      await addGuarantorSelfStep(ctx, params);
+      if (params.insurance !== false) {
+        await addInsuranceStep(ctx, params);
+      }
     }
     await createEncounterStep(ctx, params);
     await admitEncounterStep(ctx, params);

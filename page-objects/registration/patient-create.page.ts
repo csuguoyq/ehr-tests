@@ -72,6 +72,13 @@ export class PatientCreatePage {
   async pickDob(dob: string): Promise<void> {
     const [mm, dd, yyyy] = dob.split("/").map((p) => String(Number(p)));
     const chooseDate = this.dialog.locator('button[aria-label*="Choose date"]');
+    // The early duplicate check can pop its dialog mid-form (intercepts every
+    // click) — force-create through it before continuing (fbch34 2026-09-16).
+    const dupButton = this.page.getByTestId("duplicate-patient-create-new-patient-button");
+    if (await dupButton.isVisible().catch(() => false)) {
+      await dupButton.click();
+      await dupButton.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+    }
     await chooseDate.click();
 
     const popper = this.page.locator(".MuiPickersLayout-root");

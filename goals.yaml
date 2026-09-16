@@ -50,6 +50,9 @@ goals:
         requiredIf:
           param: patientMode
           values: ["new", "api"]
+      insurance:
+        type: boolean
+        default: true   # false = self-pay 模式（不登记保险，如 SZ35253 前置）
       encounterType:
         type: string
         enum: ["Inpatient Acute", "Outpatient", "Emergency", "Observation"]
@@ -267,6 +270,9 @@ goals:
       transactionCode:
         type: string
         default: "0001"   # Transfer Patient to Insurance
+      balanceType:
+        type: string
+        default: "Guarantor"   # SZ35253 手工录制：Balance Type 显式选 Guarantor
       amount:
         type: string
         default: null   # null = 全额（当前 Guarantor Balance）
