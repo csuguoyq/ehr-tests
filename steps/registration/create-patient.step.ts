@@ -43,6 +43,9 @@ export async function createPatientStep(ctx: EhrContext, params: ResolvedParams)
   // Two failure modes are handled here (≤3 attempts): the potential-duplicate
   // warning (force-create through the dialog's own "Create New Patient"), and
   // a submit click swallowed by the app (dialog stays open, no request).
+  // The duplicate warning is a server response — it only pops after clicking,
+  // so submit first and only then wait for the outcome.
+  await create.submit();
   let outcome = await create.waitForSubmitOutcome();
   for (let attempt = 0; attempt < 3 && outcome !== "closed"; attempt++) {
     if (outcome === "duplicate") {

@@ -8,6 +8,7 @@ import type { FlowDefinition } from "../src/types/flow";
 import { openRegistrationStep } from "../steps/registration/registration-open.step";
 import { createPatientStep } from "../steps/registration/create-patient.step";
 import { addGuarantorSelfStep } from "../steps/registration/add-guarantor-self.step";
+import { addInsuranceStep } from "../steps/registration/add-insurance.step";
 import { createEncounterStep } from "../steps/registration/create-encounter.step";
 import { admitEncounterStep } from "../steps/registration/admit-encounter.step";
 import { waitForBnrStep } from "../steps/registration/wait-bnr.step";
@@ -27,11 +28,17 @@ export const ClaimToSubmittedFlow: FlowDefinition = {
   description:
     "端到端：新患者 → Inpatient Acute admit+BNR → Quick Charge → Coding Complete → 出院医嘱 → 出院 → Start Billing（必要时 Force Bill）→ Claim Submitted",
   async execute(ctx, params) {
-    // 1. patient + guarantor + insurance + Inpatient Acute + admit + BNR
-    //    (guarantor/insurance are create_encounter defaults now; assign to
-    //    the BNR happens later — see assign step)
+    // 1. patient + Self guarantor + insurance + Inpatient Acute + admit + BNR
+    //    Guarantor/insurance are REQUIRED before the encounter: Entity "Mini
+    //    Reg Guarantor" cannot match insurance and an uncovered BNR never
+    //    produces claims (SZ35253 convention, mirrors create-encounter.flow —
+    //    without these the Create Encounter save stays disabled / no claim).
     await openRegistrationStep(ctx, params);
     await createPatientStep(ctx, params);
+    await addGuarantorSelfStep(ctx, params);
+    if (params.insurance !== false) {
+      await addInsuranceStep(ctx, params);
+    }
     await createEncounterStep(ctx, params);
     await admitEncounterStep(ctx, params);
     await waitForBnrStep(ctx, params);

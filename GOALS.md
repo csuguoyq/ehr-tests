@@ -13,7 +13,7 @@
 | claim_submitted | ClaimSubmitFlow | Insurance Claims | encounterId | 未开始（被 submit_claim 取代，待清理） |
 | lookup_account | LookupAccountFlow | Charge Services | mrn（最快最准）/ patientName 二选一 | 只读查询：返回账户行（姓名/DOB/MRN/SSN），可做存在性检查 | 新增 2026-09-15 fbch34 实测 |
 | open_bnr_detail | OpenBnrDetailFlow | Charge Services | mrn / patientName 二选一 | 只读定位：打开患者 Hospital BNR 详情 | 新增 2026-09-16 fbch34 |
-| claim_to_submitted | ClaimToSubmittedFlow | 全部 | planId, lastName?, cpts, qty, drg/dx 等 | 大部分通过（fbch34 2026-09-16：到 Billed 稳定）；末段 submit-claim 依赖服务器侧 claim 生成，见 TCS.md SZ35474 备注 |
+| claim_to_submitted | ClaimToSubmittedFlow | 全部 | planId, lastName?, cpts, qty, drg/dx 等 | 大部分通过（fbch34 2026-09-16：到 Billed 稳定）；末段 submit-claim 依赖服务器侧 claim 生成，见 TCS.md 环境备注。已固化为 `specs/claim-to-submitted.spec.ts`（2026-09-16 fbch34 复跑：到 Billed 稳定，末段环境阻断） |
 
 
 | void_claim_rebill | VoidClaimRebillFlow | Charge Services (Billing/Claims) | mrn?/patientName?, forceReason | 已实现（fbch34 2026-09-16）：kebab → Void Claim → 重 billing → 重 Submit；端到端依赖 claim 存在，见 TCS.md SZ35474 |

@@ -153,6 +153,10 @@ npx playwright test                        # 全量回归
 - **claim 生成不在 UI**：force bill（即使保险已分配）后 Insurance Claims 区保持为空；
   claim 生成依赖服务器侧管线（submitClaims daemon / updateBNRStatus，见 TC32438/TC33301）。
   submit-claim step 在 claim 缺失时给出明确诊断报错。
+- **claim_to_submitted 全周期 goal 已固化**（`specs/claim-to-submitted.spec.ts`）：
+  创建病人 → 担保人/保险 → admit+BNR → charges → coding → 出院 → force bill →
+  claim Submitted，单一 goal 驱动，断言 scratch.submitted + claim 行状态双证。
+  2026-09-16 fbch34 复跑：~4 min 到 Billed 稳定，末段同受 claim 管线环境阻断。
 - **CPOE2 弹窗序列变化**：Validation Dialog 的 OK 按钮点击被吞——须在密码框按 Enter
   提交；保存后延迟 15–35s 弹出 **MUI "Save Order / COMPROOM" 回执**（模态、必须关）；
   ExtJS `.x-window` 会留隐藏模板窗口，所有弹窗定位必须加 `:visible`。
