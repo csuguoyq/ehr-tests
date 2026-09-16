@@ -4,3 +4,4 @@ playwright-report/
 .env
 *.log
 .build-drv/
+recordings/

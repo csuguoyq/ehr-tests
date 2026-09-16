@@ -5,6 +5,10 @@
 
 状态机：未登记 → 交互已执行 → 已固化 → 已回归
 
+**固化流程（2026-09-16 约定）**：未固化的 TC 先由用户用 codegen 录制手工操作
+（`npx playwright codegen --ignore-https-errors -o recordings/<SZ号>.manual.ts "<入口URL>"`），
+AI 按录制代码重构为 spec 后无头验证，最终一律以固化的 spec 执行回归。
+
 | TC/SZ | TC 内容 | 固化资产 | 执行 | 状态 | 最后验证 |
 |---|---|---|---|---|---|
 | TC35266 | Planned encounter → Admit → Patient Control census 显示 Admit Date（SZ35266 回归，bug 2026-08-10 已修） | `specs/SZ35266-admit-date.spec.ts` | `npx playwright test specs/SZ35266-admit-date.spec.ts` | 已固化·PASS | 2026-09-15 fbch34 |
