@@ -150,13 +150,17 @@ npx playwright test                        # 全量回归
   锁定为折扣前责任额（$16,640），而 force bill 自动挂 Policy Discount（True Self Pay）
   后 guarantor 实际 $13,312 —— 超额转账被拒：余额不变、无 claim 生成。spec 按 TC
   原文 Expected 断言，在修复 SD416964 部署前预期 FAIL（作为缺陷证据）。
-- **claim 生成不在 UI**：force bill（即使保险已分配）后 Insurance Claims 区保持为空；
-  claim 生成依赖服务器侧管线（submitClaims daemon / updateBNRStatus，见 TC32438/TC33301）。
-  submit-claim step 在 claim 缺失时给出明确诊断报错。
-- **claim_to_submitted 全周期 goal 已固化**（`specs/claim-to-submitted.spec.ts`）：
+- **claim 生成已在 UI 证实（2026-09-17 修正，推翻 09-16 结论）**：force bill 后 claim
+  正常生成并可 Submit 到 Submitted。09-16 的「claim 不在 UI 生成、依赖服务器侧
+  submitClaims 管线」是自动化误诊——Billing 视图的 Insurance Claims / Unbilled
+  Charges 等区块是受控 BillingAccordion：默认折叠、折叠时不渲染 grid、数据仅在
+  mount 时拉取一次；在折叠+陈旧的 grid 上单次读取必得空。读取前必须展开
+  （`ClaimsPage.tryExpand`）+ 重挂载重取（`ClaimsPage.waitForFirstRow` /
+  `BillingPage.remountForFreshState`）。
+- **claim_to_submitted 全周期 goal 已固化并端到端 PASS**（`specs/claim-to-submitted.spec.ts`）：
   创建病人 → 担保人/保险 → admit+BNR → charges → coding → 出院 → force bill →
   claim Submitted，单一 goal 驱动，断言 scratch.submitted + claim 行状态双证。
-  2026-09-16 fbch34 复跑：~4 min 到 Billed 稳定，末段同受 claim 管线环境阻断。
+  2026-09-17 fbch34 全链 PASS（~4 min）。
 - **CPOE2 弹窗序列变化**：Validation Dialog 的 OK 按钮点击被吞——须在密码框按 Enter
   提交；保存后延迟 15–35s 弹出 **MUI "Save Order / COMPROOM" 回执**（模态、必须关）；
   ExtJS `.x-window` 会留隐藏模板窗口，所有弹窗定位必须加 `:visible`。
@@ -174,8 +178,32 @@ npx playwright test                        # 全量回归
   消化 Unsaved Changes 弹窗。
 - **Coding ADT 子页**：编辑表单的 Admitting/Attending Provider 必填（选 34494a）；
   disposition 预填时 placeholder 选择器不可见，需条件分支。
-- SZ35474 TC01/TC02 断言已固化（`specs/sz/TC35474-claim-totals.spec.ts`），待服务器侧
-  claim 管线可用后即可端到端回归。
+- SZ35474 TC01/TC02 断言已固化（`specs/sz/TC35474-claim-totals.spec.ts`）。2026-09-17
+  复诊：链推进到 claim Submitted + void 成功；仅 re-bill 腿等待 BNR 状态从 Billed
+  翻回可计费（依赖服务器侧 updateBNRStatus），8 分钟重挂载轮询未翻转即诊断报错。
+
+### 全量回归 + 修复审查切片（2026-09-17，fbch34）
+
+全量回归 `specs/`：除 TC35474 re-bill 腿（上述服务器侧状态翻转）外全部 PASS；
+claim_to_submitted 修复后端到端 PASS。对工作区 09-16 未提交修复的审查结论与改动：
+
+- **折叠卡片误读（真 bug，修复）**：submit-claim / void-claim 在未展开的 Insurance
+  Claims 手风琴上读行，恒得空——「无 claim」诊断可能误报（本例实际是漏报：claim
+  已生成）。新增 `ClaimsPage.tryExpand / waitForFirstRow`、`BillingPage.remountForFreshState`。
+- **force-bill 尾部移除（不合理修复，修复）**：盲等 10s + 无保护切 Charges tab 再切回，
+  违反轮询约定且 tab 点击失败会把已成功的 force bill 拖挂。其唯一消费者 submit-claim
+  现自带重挂载读取，收口一处。
+- **re-bill 腿等待（新增）**：void 后 Start/Force Bill 的重现依赖 BNR 状态翻转，且卡片
+  只在 mount 时重取——`start-billing` 改用 `waitForRebillable`（8 min 有界轮询 + 每轮
+  重挂载）；BNR Edits 直达状态由 force-bill 步骤承接。
+- **OE Provider 兜底清理**：Pre-Add 固定列表按 startsWith 过滤，兜底查询 "tes" 永远
+  匹配不到（PROJECT.md 阶段 5 已证）——删除死分支，报错信息指向 providerQuery 参数。
+- **insurance pickOption verify 推导修正**：多分支正则 `/Female|Male/i` 的 source 拼接
+  产生 "FemaleMale" 永不匹配（当前靠字段预填掩盖）——改取首个分支；Subscriber Sex
+  调用改为按患者实际性别精确匹配；重复的 wrapper/shown 计算提取为 `shownSelection`。
+- 保留（用户 09-16 约定，审查通过）：SSN 生成规则（`<YY各位和><MMDD><HHmm>`，同分钟
+  创建有重名/重 SSN 可能，靠 POTENTIAL DUPLICATE 强制创建兜底）；OE/Coding Provider
+  取第一候选；billing `waitForActionable` 轮询。
 - **SZ35253 结论修正（2026-09-16，用户录制驱动）**：此前"缺陷复现"实为自动化操作
   缺失——①患者须有 Person(Self) 担保人（Entity "Mini Reg Guarantor" 匹配不到保险，
   Available Coverages 恒为 None）；②保险登记后须在 Accounts (BNR)→Edit→**Assign**

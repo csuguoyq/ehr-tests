@@ -37,14 +37,26 @@ export class BillingPage {
 
   /** Open the Billing tab of the BNR detail (must already be open). */
   async open(): Promise<void> {
-    await this.billingTab.click();
-    await this.expectOverview();
+    await this.openOverview();
   }
 
   /** Open the Billing tab without assuming a card state (billed/edits/fresh). */
   async openOverview(): Promise<void> {
     await this.billingTab.click();
     await this.expectOverview();
+  }
+
+  /**
+   * Force the Billing view to re-mount so server-side changes (claim
+   * generation, billing finalization) become visible: the view does NOT
+   * refresh in place after a billing POST (fbch34 2026-09-16, user
+   * observation), and the claim grid only FETCHES on mount (InsuranceClaimTable
+   * `_getClaimList` on [dbpath, bnrnit, refresh]) — switch to a sibling
+   * BNR detail tab and back to get a fresh fetch.
+   */
+  async remountForFreshState(): Promise<void> {
+    await this.page.getByRole("tab", { name: "Charges", exact: true }).click();
+    await this.openOverview();
   }
 
   /** The Billing Overview chips/cards are rendered (any billing state). */
@@ -59,9 +71,33 @@ export class BillingPage {
     return this.forceBillButton.isVisible().catch(() => false);
   }
 
+  /**
+   * Wait until the card is actually actionable: Start Billing rendered, or
+   * a Force Bill state (BNR Edits) surfaced. Clicking Start Billing the
+   * moment the overview paints fires before the server-side BNR-Edits
+   * evaluation lands — the bill bounces and costs a full retry round
+   * (fbch34 2026-09-16, user observation).
+   */
+  async waitForActionable(timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (
+        (await this.startBillingButton.isVisible().catch(() => false)) ||
+        (await this.isForceNeeded())
+      ) {
+        return true;
+      }
+      await this.page.waitForTimeout(500);
+    }
+    return false;
+  }
+
   /** Start Billing → confirm the date-range dialog with "Bill Now". */
   async startBilling(): Promise<void> {
-    await expect(this.startBillingButton).toBeEnabled();
+    // After discharge the card state can lag the navigation — require the
+    // button to be visibly rendered (not just attached) before pressing it.
+    await expect(this.startBillingButton).toBeVisible({ timeout: 30_000 });
+    await expect(this.startBillingButton).toBeEnabled({ timeout: 15_000 });
     await this.startBillingButton.click();
     await expect(this.confirmDialog).toBeVisible({ timeout: 15_000 });
     await expect(this.confirmDialog).toContainText("Select Billing Date Range");
@@ -104,7 +140,7 @@ export class BillingPage {
     return false;
   }
 
-  /** Posted proof: the Unbilled Charges card no longer offers Start Billing. */
+  /** Assert the Unbilled Charges card no longer offers Start Billing. */
   async expectBilled(): Promise<void> {
     await expect(this.startBillingButton).toBeHidden({ timeout: 30_000 });
   }
@@ -156,5 +192,32 @@ export class BillingPage {
       await this.page.waitForTimeout(500);
     }
     return false;
+  }
+
+  /**
+   * Poll until the summary card offers a billing entry point again (Start
+   * Billing or Force Bill), re-mounting the view between rounds: the card
+   * only re-fetches on mount (CardList showBillBtn/showForceBtn derive from
+   * bnrstatus + lastClaim, and after a claim void the BNR status flip runs
+   * server-side — fbch34 2026-09-16, TC35474 re-bill leg).
+   */
+  async waitForRebillable(timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      if (
+        (await this.startBillingButton.isVisible().catch(() => false)) ||
+        (await this.isForceNeeded())
+      ) {
+        return true;
+      }
+      if (Date.now() >= deadline) return false;
+      try {
+        await this.remountForFreshState();
+      } catch {
+        return false;
+      }
+      if (Date.now() >= deadline) return false;
+      await this.page.waitForTimeout(3_000);
+    }
   }
 }

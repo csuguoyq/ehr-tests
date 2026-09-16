@@ -23,7 +23,7 @@ test(
   "SZ35474 TC01+TC02: void→rebill 链后 Totals 只计非 Closed claim（host 见 .env）",
   { tag: "@slow" },
   async ({ authedPage }) => {
-    test.setTimeout(900_000); // full revenue cycle + void + re-bill
+    test.setTimeout(1_500_000); // full revenue cycle + void + server-side re-billable wait
     const lastName = generateLastName();
     // Full chain: patient → admit/BNR → charges → coding → discharge →
     // bill → claim Submitted (claim_to_submitted is self-contained).

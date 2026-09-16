@@ -21,6 +21,12 @@ export async function forceBillStep(ctx: EhrContext, params: ResolvedParams): Pr
   }
   await billing.forceBill(reason);
   await billing.expectForceBillDone();
+  // No refresh dance here: the Billing view does not refresh in place after
+  // the force-bill POST (fbch34 2026-09-16, user observation), but its only
+  // in-flow consumer is submit-claim, which re-mounts and re-fetches via
+  // ClaimsPage.waitForFirstRow; every other flow navigates away afterwards
+  // (fresh mount = fresh data). A tab-switch here could fail an already
+  // successful force bill (2026-09-16 regression review).
   ctx.scratch.billing = { forced: true, reason };
   ctx.log.info("force bill posted");
 }

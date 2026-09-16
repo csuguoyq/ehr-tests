@@ -206,10 +206,19 @@ export class CodingPage {
       .all()) {
       if ((await providerInput.inputValue().catch(() => "")) !== "") continue;
       await providerInput.click();
-      await providerInput.pressSequentially("34494a", { delay: 80 });
-      const option = this.page.locator("li[role=option]").first();
-      await expect(option).toBeVisible({ timeout: 15_000 });
-      await option.click();
+      // No fixed provider name: take the FIRST candidate the list offers.
+      // The list may only populate after a query — type a generic broad
+      // string (never a box-specific provider id) and pick the first option.
+      const firstOption = this.page.locator("li[role=option]").first();
+      const listed = await firstOption
+        .waitFor({ state: "visible", timeout: 3_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!listed) {
+        await providerInput.pressSequentially("s", { delay: 80 });
+      }
+      await expect(firstOption, "Select Physician 列表无候选").toBeVisible({ timeout: 15_000 });
+      await firstOption.click();
     }
 
     const save = this.view.getByRole("button", { name: "Save", exact: true });

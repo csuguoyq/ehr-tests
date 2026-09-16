@@ -85,12 +85,28 @@ export class InsurancePage {
   }
 
   /**
+   * What a combobox/multiselect wrapper currently SHOWS: the wrapper's text
+   * (MUI chips / selected value) plus the raw input value.
+   */
+  private async shownSelection(candidate: Locator): Promise<string> {
+    const wrapper = candidate.locator(
+      "xpath=ancestor::div[contains(@class,'MuiInputBase') or contains(@class,'MuiFormControl')][1]"
+    );
+    return (
+      (await wrapper.innerText().catch(() => "")) +
+      (await candidate.inputValue().catch(() => ""))
+    );
+  }
+
+  /**
    * Pick an option from a "Make Selection"-style combobox field. Verifies
    * the selection actually landed (multi-select chips can drop on Escape —
    * flaky on fbch34) and retries up to 3 times.
    */
   async pickOption(label: string, optionText: RegExp, expectText?: string): Promise<void> {
-    const verify = expectText ?? optionText.source.replace(/\|\^|\$|\/i/g, "");
+    // First alternative only: /Female|Male/i → "Female". (Joining the whole
+    // source yields "FemaleMale", which matches nothing.)
+    const verify = expectText ?? optionText.source.split("|")[0].replace(/[\^$]/g, "");
     const labels = await this.labelBoxes(label).all();
     for (const labelBox of labels) {
       const inputs = labelBox.locator("xpath=following::input | following::textarea");
@@ -103,6 +119,10 @@ export class InsurancePage {
           continue;
         }
         if ((await candidate.inputValue()) !== "") return;
+        // Already-selected guard (Insurance Type ships pre-checked on fbch34):
+        // if the wrapper already shows the target option, leave it alone —
+        // clicking the option again would TOGGLE it off (user note 2026-09-16).
+        if ((await this.shownSelection(candidate)).toLowerCase().includes(verify.toLowerCase())) return;
         for (let attempt = 1; attempt <= 3; attempt++) {
           await candidate.click();
           const option = this.page.locator("li[role=option]", { hasText: optionText }).first();
@@ -117,9 +137,7 @@ export class InsurancePage {
             .first()
             .waitFor({ state: "hidden", timeout: 5_000 })
             .catch(() => {});
-          const wrapper = candidate.locator("xpath=ancestor::div[contains(@class,'MuiInputBase') or contains(@class,'MuiFormControl')][1]");
-          const shown = (await wrapper.innerText().catch(() => "")) + (await candidate.inputValue().catch(() => ""));
-          if (shown.toLowerCase().includes(verify.toLowerCase())) return;
+          if ((await this.shownSelection(candidate)).toLowerCase().includes(verify.toLowerCase())) return;
         }
         throw new Error(`field "${label}": selection "${verify}" did not stick after 3 attempts`);
       }

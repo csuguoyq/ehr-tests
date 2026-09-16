@@ -14,6 +14,7 @@
 
 import { expect, type Page, type Locator } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
+import type { BillingPage } from "./billing.page";
 
 export interface ClaimRowView {
   status: string;
@@ -98,6 +99,48 @@ export class ClaimsPage {
       await summary.click();
     }
     await expect(this.claimGrid).toBeVisible({ timeout: 20_000 });
+  }
+
+  /**
+   * Expand the accordion only when it is not already expanded; never asserts.
+   * The accordion ships COLLAPSED and its grid is not rendered until expanded
+   * (BillingAccordion renders `{expanded ? children : null}`, claimExpanded
+   * useState(false) — ehr/src/Charge/Claim/Billing/InsuranceClaimTable.tsx),
+   * so any row read on the collapsed accordion is ALWAYS empty.
+   */
+  async tryExpand(): Promise<void> {
+    if (!(await this.claimsSection.isVisible().catch(() => false))) return;
+    if (await this.claimGrid.isVisible().catch(() => false)) return;
+    const summary = this.claimsSection.locator(".MuiAccordionSummary-root").first();
+    await summary.click().catch(() => undefined);
+  }
+
+  /**
+   * Wait for claim rows to appear and return them. Claim generation rides the
+   * server-side pipeline (submitClaims/updateBNRStatus, TC32438/TC33301) and
+   * the grid only FETCHES on mount, so a single read after the billing POST
+   * can miss a claim twice over: the accordion may still be collapsed, and
+   * the data may predate the POST. Each round therefore expands, reads, and —
+   * while still empty — re-mounts the Billing view (tab away + back) to force
+   * a fresh fetch, until timeoutMs elapses.
+   */
+  async waitForFirstRow(billing: BillingPage, timeoutMs: number): Promise<ClaimRowView[]> {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      await this.tryExpand();
+      const roundDeadline = Math.min(Date.now() + 8_000, deadline);
+      let rows = await this.readRows();
+      while (rows.length === 0 && Date.now() < roundDeadline) {
+        await this.page.waitForTimeout(500);
+        rows = await this.readRows();
+      }
+      if (rows.length > 0 || Date.now() >= deadline) return rows;
+      try {
+        await billing.remountForFreshState();
+      } catch {
+        return await this.readRows();
+      }
+    }
   }
 
   /** The kebab ("More") button of a claim row — the row's only real button. */

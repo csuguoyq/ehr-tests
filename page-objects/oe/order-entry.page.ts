@@ -139,7 +139,7 @@ export class OrderEntryPage {
   async addAdtDischargeOrder(
     category = "ADT Orders",
     orderName = "Discharge",
-    providerQuery = "34494a"
+    providerQuery?: string
   ): Promise<void> {
     await this.clickBtn("Browse");
     await expect(this.page.getByText("BROWSE ORDERS")).toBeVisible({ timeout: 20_000 });
@@ -205,8 +205,17 @@ export class OrderEntryPage {
     await expect(this.page.getByText("BROWSE ORDERS")).toHaveCount(0, { timeout: 20_000 });
   }
 
-  /** Pick the first provider offered in the BROWSE ORDERS pre-Add panel. */
-  private async fillAuthorizingProvider(providerQuery = "tes"): Promise<void> {
+  /**
+   * Pick a provider from the BROWSE ORDERS pre-Add panel — NO fixed name:
+   * open the list and take the FIRST candidate (user convention 2026-09-16).
+   * With no typed query the fixed choice list (cpoeChoices.providers.
+   * authorizing) is coaxed open via ArrowDown. There is deliberately NO
+   * generic typed fallback: this panel filters STARTSWITH over a fixed
+   * choice list, so a broad query like "tes" can never match (verified
+   * fbch34, PROJECT.md 阶段 5) — a box needing a typed query must pass
+   * providerQuery (goals.yaml discharge.providerQuery).
+   */
+  private async fillAuthorizingProvider(providerQuery?: string): Promise<void> {
     const dialog = this.page.locator('[role=dialog]:has-text("BROWSE ORDERS")').last();
     // The provider input is the dialog's LAST text input — verified at
     // runtime (fbch34 2026-09-15): skipping "search"-placeholder inputs
@@ -219,30 +228,32 @@ export class OrderEntryPage {
     const count = await inputs.count();
     const provider = inputs.nth(count - 1);
     await provider.click();
-    await provider.fill("");
-    await provider.pressSequentially(providerQuery, { delay: 80 });
 
-    // The option list may be an MUI listbox, an ExtJS boundlist, or appear
-    // only after clicking the field's popup trigger. The lookup is async, so
-    // wait for the list instead of probing once.
+    const options = this.page.locator('li[role=option], .x-boundlist-item');
+    let attached = await options
+      .first()
+      .waitFor({ state: "attached", timeout: 3_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!attached) await provider.press("ArrowDown");
+    attached = await options
+      .first()
+      .waitFor({ state: "attached", timeout: 3_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!attached && providerQuery) {
+      await provider.fill("");
+      await provider.pressSequentially(providerQuery, { delay: 80 });
+      attached = await options
+        .first()
+        .waitFor({ state: "attached", timeout: 8_000 })
+        .then(() => true)
+        .catch(() => false);
+    }
     // The option popup may render ATTACHED but not playwright-"visible"
     // (zero-size/offscreen popper) — match the verified probe behavior:
     // wait for ATTACHED options (allTextContents sees them regardless of
     // visibility), then click by text with a force fallback.
-    const options = this.page.locator('li[role=option], .x-boundlist-item');
-    let attached = await options
-      .first()
-      .waitFor({ state: "attached", timeout: 8_000 })
-      .then(() => true)
-      .catch(() => false);
-    if (!attached) {
-      await provider.press("ArrowDown");
-      attached = await options
-        .first()
-        .waitFor({ state: "attached", timeout: 3_000 })
-        .then(() => true)
-        .catch(() => false);
-    }
     if (!attached) {
       const dump = await dialog
         .locator("input")
@@ -253,7 +264,9 @@ export class OrderEntryPage {
       const html = await provider
         .evaluate((el) => (el.parentElement?.parentElement?.outerHTML ?? "").slice(0, 300))
         .catch(() => "(no html)");
-      throw new Error(`Provider 候选项未出现（query=${providerQuery}）；inputs=[${dump}]；字段 DOM: ${html}`);
+      throw new Error(
+        `Provider 候选项未出现（ArrowDown 未逼出固定列表；若本 box 需要键入查询串，请在 goals.yaml 的 discharge.providerQuery 配置）；inputs=[${dump}]；字段 DOM: ${html}`
+      );
     }
 
     const option = options.first();
@@ -264,26 +277,30 @@ export class OrderEntryPage {
 
   /** Click the new-order card title to open ORDER DETAILS. */
   async openOrderDetails(orderName: string): Promise<void> {
-    const candidates: Array<() => Promise<void>> = [
-      async () => {
-        await this.page
-          .locator(`.x-panel-header-text:text-is("${orderName}"), .x-title:text-is("${orderName}")`)
-          .last()
-          .click({ timeout: 4_000 });
-      },
-      async () => {
-        await this.page.getByText(orderName, { exact: true }).last().click({ timeout: 4_000 });
-      },
-      async () => {
-        await this.page
-          .locator("text=/^Discharge patient$/")
-          .last()
-          .click({ timeout: 4_000 });
-      },
-    ];
-    for (const click of candidates) {
+    // Wait ONCE for whichever title rendering this build offers (racing the
+    // candidates with .or() instead of timing each out sequentially — the
+    // old per-candidate 4s timeouts stalled every entry for seconds, fbch34
+    // 2026-09-16), then click it and fall back to the looser matches only
+    // if ORDER DETAILS still does not show.
+    const title = this.page
+      .locator(`.x-panel-header-text:text-is("${orderName}"), .x-title:text-is("${orderName}")`)
+      .last();
+    const loose = this.page.getByText(orderName, { exact: true }).last();
+    // This build renders the ADT card title as "<Order> patient" (e.g.
+    // "Discharge patient" with a "Discharge Date" subtitle) — neither exact
+    // variant matches it, so it must join the race (fbch34 2026-09-16).
+    const card = this.page
+      .locator(`text=/^${orderName.replace(/\s+/g, "\\s+")} patient$/`)
+      .last();
+    await expect(title.or(loose).or(card)).toBeVisible({ timeout: 20_000 });
+    const candidates: Array<Locator> = [title, loose, card];
+    for (const target of candidates) {
       if (await this.page.getByText("ORDER DETAILS").isVisible().catch(() => false)) break;
-      await click().catch(() => undefined);
+      // Press only the candidate that is ACTUALLY rendered — sequential
+      // click-and-timeout on the non-matching variants stalled ~8-9s per
+      // entry (fbch34 2026-09-16, user observation).
+      if (!(await target.isVisible().catch(() => false))) continue;
+      await target.click({ timeout: 4_000 }).catch(() => undefined);
       await this.page.waitForTimeout(500);
     }
     try {

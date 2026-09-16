@@ -13,6 +13,10 @@ export async function voidClaimStep(ctx: EhrContext, _params: ResolvedParams): P
   ctx.log.step("void-claim", "Billing tab → claim row kebab → Void Claim");
 
   await billing.openOverview();
+  // The claims accordion ships collapsed and its rows are not rendered until
+  // expanded — the Submitted row lookup below would always time out otherwise
+  // (2026-09-16 regression review, same trap as submit-claim).
+  await claims.tryExpand();
 
   // Void the Submitted (original) claim row — a fresh BNR has exactly one.
   const row = claims.claimRows.filter({ hasText: "Submitted" }).first();

@@ -17,9 +17,12 @@ export async function submitClaimStep(ctx: EhrContext, params: ResolvedParams): 
   // Claim creation does not ride on force bill everywhere: on fbch34
   // (2026-09-16) the Insurance Claims section stays empty after billing —
   // claim generation runs server-side (submitClaims daemon / updateBNRStatus,
-  // see TC32438/TC33301). Fail with that diagnosis instead of a locator
-  // timeout when there is nothing to submit.
-  const existing = await claims.readRows();
+  // see TC32438/TC33301). waitForFirstRow expands the (collapsed) claims
+  // accordion and re-mounts the Billing view to re-fetch before giving up,
+  // so the diagnostic below only fires when there is truly no claim
+  // (2026-09-16 regression review: a single read on the collapsed accordion
+  // false-positived this env block).
+  const existing = await claims.waitForFirstRow(billing, 45_000);
   if (existing.length === 0) {
     throw new Error(
       "无 claim 可提交：force bill 后 Insurance Claims 为空。本 box 的 claim 生成依赖服务器侧管线" +

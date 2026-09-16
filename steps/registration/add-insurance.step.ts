@@ -55,7 +55,11 @@ export async function addInsuranceStep(ctx: EhrContext, params: ResolvedParams):
   await insurance.pickOption("Subscriber State", /California/i, "CA");
   await insurance.fillText("Subscriber Zip", "92101");
   await insurance.fillToday("Subscriber D.O.B.");
-  await insurance.pickOption("Subscriber Sex", /Female|Male/i, String(patient?.sex || "Male")[0]);
+  await insurance.pickOption(
+    "Subscriber Sex",
+    new RegExp(patient?.sex || "Male", "i"),
+    patient?.sex || "Male"
+  );
   await insurance.pickOption("Subscriber Country", /United States/i, "United States");
   // The phone field arrives pre-filled with a PARTIAL invalid value.
   await insurance.fillPhone("Subscriber Phone", "5551234567");

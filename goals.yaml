@@ -22,10 +22,10 @@ goals:
     flow: CreatePatientFlow
     implemented: true
     params:
-      # 全部可选；null = step 生成默认（姓名 Testbot_时间戳、SSN 日期+随机、DOB 随机年份）
+      # 全部可选；null = step 生成默认（姓名 Testbot_时间戳、SSN 日期+时刻、DOB 随机年份）
       firstName: { type: string, default: null, description: "默认 Auto" }
       lastName: { type: string, default: null, description: "默认 Testbot_<YYMMDDHHmm>" }
-      ssn: { type: string, default: null, description: "默认 <YYMMDD><NNN> 3-2-4 随机" }
+      ssn: { type: string, default: null, description: "默认 <YY各位和><MMDD><HHmm> 3-2-4；如 2026-09-16 17:44 → 809-16-1744" }
       dob: { type: string, default: null, description: "MM/DD/YYYY；默认当前月日+随机年份 1980-2005" }
       address1: { type: string, default: null, description: "默认 123 Main St" }
       city: { type: string, default: null, description: "默认 San Diego" }
@@ -353,4 +353,4 @@ goals:
         default: "Home or self-care"
       providerQuery:
         type: string
-        default: "tes"   # CPOE2 Provider 搜索串（≥3 字母，需能返回候选）
+        default: null   # 不固定 Provider：默认开列表取第一个候选；仅当列表需搜索串时作为兜底
