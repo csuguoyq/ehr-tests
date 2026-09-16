@@ -144,6 +144,35 @@ npx playwright test                        # 全量回归
 - authedPage 默认 token 登录（`api/auth.ts`），UI 登录仅作兜底与 login spec 的被测对象。
 - box 时区 ≠ 本地时区（fbch34 为美西时间）：日期类断言需按 box 的「今天」判定（见 SZ35266 spec 的 today/yesterday 双候选）。
 
+### 切片（2026 claim TC：SZ35253 + SZ35474，2026-09-16，fbch34）
+
+- ** SZ35253（TC35253）缺陷复现**：0001 Transfer Patient to Insurance 的 Amount 被
+  锁定为折扣前责任额（$16,640），而 force bill 自动挂 Policy Discount（True Self Pay）
+  后 guarantor 实际 $13,312 —— 超额转账被拒：余额不变、无 claim 生成。spec 按 TC
+  原文 Expected 断言，在修复 SD416964 部署前预期 FAIL（作为缺陷证据）。
+- **claim 生成不在 UI**：force bill（即使保险已分配）后 Insurance Claims 区保持为空；
+  claim 生成依赖服务器侧管线（submitClaims daemon / updateBNRStatus，见 TC32438/TC33301）。
+  submit-claim step 在 claim 缺失时给出明确诊断报错。
+- **CPOE2 弹窗序列变化**：Validation Dialog 的 OK 按钮点击被吞——须在密码框按 Enter
+  提交；保存后延迟 15–35s 弹出 **MUI "Save Order / COMPROOM" 回执**（模态、必须关）；
+  ExtJS `.x-window` 会留隐藏模板窗口，所有弹窗定位必须加 `:visible`。
+- **订单网格不是 `<tr>` 表格**：expectOrderActive 改为面板文本断言
+  （`Discharge patient ... Active`）。
+- **图表上下文的 rail 被替换**：REGISTRATION 按钮不在 DOM；open-patient-registration
+  先探测，缺失时经 `/Cps` 深链重建 rail。
+- **Quick Charge 点击吞没**：bucket-item 单击偶发不入队（React 未挂载），step 逐行
+  等待队列 +1 并重试（≤3）；提交同理以队列清空为回执。
+- **Insurance 表单（新 DynamicForm 版）**：选完计划后大量必填留空（Insurance Type/
+  Member ID/Effective Date/Relationship/Subscriber 全套 + Phone 预填残缺值），
+  `InsurancePage` 按 `.label-container` → 后继第一个可见 input 填默认值；应用预填并
+  锁定的字段（Address/City/State 等）视为完成；Insurance Type 是多选（Escape 关闭，
+  不要点页面级 Close——会误提交表单）；保存后 dirty flag 残留，主动切回 Demographics
+  消化 Unsaved Changes 弹窗。
+- **Coding ADT 子页**：编辑表单的 Admitting/Attending Provider 必填（选 34494a）；
+  disposition 预填时 placeholder 选择器不可见，需条件分支。
+- SZ35474 TC01/TC02 断言已固化（`specs/SZ35474-claim-totals.spec.ts`），待服务器侧
+  claim 管线可用后即可端到端回归。
+
 ### 阶段 2（create_patient 切片，2026-09-12，fbch34）
 
 - 搜索表单填单个主条件（MRN）即可解锁 Create New Patient 按钮；`sf-mrn-tf` 等 testid 在 MUI 包装 div 上，用内层 `input` fill。

@@ -180,15 +180,41 @@ export class CodingPage {
     await option.click();
   }
 
-  /** ADT sub-tab: set Discharge Disposition via the pencil edit form. */
+  /**
+   * ADT sub-tab: fill the ADT Details edit form and Save. This build (fbch34
+   * 2026-09-16) shows a read-only ADT Details card with an edit (pencil)
+   * toggle; the edit form's Admitting/Attending Provider are REQUIRED. The
+   * disposition may already be pre-filled from the encounter discharge —
+   * only pick it when the empty combobox (placeholder "Make Selection") is
+   * there; a pre-filled autocomplete renders the value, not the placeholder.
+   */
   async setDischargeDisposition(disposition: string): Promise<void> {
     await this.adtTab.click();
-    await this.view.locator('svg[data-testid="EditIcon"]').first().click();
+    const editIcon = this.view.locator('svg[data-testid="EditIcon"]').first();
+    if (await editIcon.isVisible().catch(() => false)) {
+      await editIcon.click();
+    }
+
     const dispositionInput = this.view.locator('input[placeholder="Make Selection"]').nth(1);
-    await expect(dispositionInput).toBeVisible({ timeout: 15_000 });
-    await dispositionInput.click();
-    await this.page.getByRole("option", { name: disposition, exact: true }).click();
-    await this.view.getByRole("button", { name: "Save", exact: true }).click();
+    if (await dispositionInput.isVisible().catch(() => false)) {
+      await dispositionInput.click();
+      await this.page.locator("li[role=option]", { hasText: disposition }).first().click();
+    }
+
+    for (const providerInput of await this.view
+      .locator('input[placeholder="Select Physician"]')
+      .all()) {
+      if ((await providerInput.inputValue().catch(() => "")) !== "") continue;
+      await providerInput.click();
+      await providerInput.pressSequentially("34494a", { delay: 80 });
+      const option = this.page.locator("li[role=option]").first();
+      await expect(option).toBeVisible({ timeout: 15_000 });
+      await option.click();
+    }
+
+    const save = this.view.getByRole("button", { name: "Save", exact: true });
+    await expect(save).toBeEnabled({ timeout: 20_000 });
+    await save.click();
     await expect(this.view).toContainText(disposition, { timeout: 20_000 });
   }
 

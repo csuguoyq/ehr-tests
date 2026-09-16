@@ -71,6 +71,40 @@ export class BillingPage {
   }
 
   /** Posted proof: the Unbilled Charges card no longer offers Start Billing. */
+  async isStartGone(): Promise<boolean> {
+    return this.startBillingButton.isHidden().catch(() => true);
+  }
+
+  /** True while the Guarantor card still reads "Not Yet Billed". */
+  async isNotYetBilled(): Promise<boolean> {
+    return this.page
+      .getByText("Not Yet Billed", { exact: true })
+      .first()
+      .isVisible()
+      .catch(() => false);
+  }
+
+  /**
+   * Wait until the billing state settles after a Bill Now: the Guarantor
+   * card stops reading "Not Yet Billed" (billed), the Start Billing button
+   * clears, or a Force Bill state appears (BNR Edits).
+   */
+  async waitForSettled(timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (
+        !(await this.isNotYetBilled()) ||
+        (await this.isStartGone()) ||
+        (await this.isForceNeeded())
+      ) {
+        return true;
+      }
+      await this.page.waitForTimeout(500);
+    }
+    return false;
+  }
+
+  /** Posted proof: the Unbilled Charges card no longer offers Start Billing. */
   async expectBilled(): Promise<void> {
     await expect(this.startBillingButton).toBeHidden({ timeout: 30_000 });
   }
@@ -97,5 +131,30 @@ export class BillingPage {
   /** Posted proof after force billing: the Force Bill button is gone. */
   async expectForceBillDone(): Promise<void> {
     await expect(this.forceBillButton).toBeHidden({ timeout: 30_000 });
+  }
+
+  // ---- Guarantor Balance (SZ35253 surface) ---------------------------------
+
+  /**
+   * The "Guarantor Balance" accordion header carries the live total (label +
+   * formatted amount); the last $ amount in the summary is the balance sum.
+   */
+  async readGuarantorBalance(): Promise<number> {
+    const section = this.page.locator(".MuiAccordion-root", { hasText: "Guarantor Balance" });
+    await expect(section).toBeVisible({ timeout: 20_000 });
+    const summary = await section.locator(".MuiAccordionSummary-root").innerText();
+    const amounts = summary.match(/\$-?[\d,]+\.\d{2}/g) || ["$0.00"];
+    const neg = /-\s*\$/.test(summary);
+    return Number(amounts[amounts.length - 1].replace(/[$,]/g, "")) * (neg ? -1 : 1);
+  }
+
+  /** Poll for a Force Bill state (BNR Edits) to appear. */
+  async waitForForceNeeded(timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await this.isForceNeeded()) return true;
+      await this.page.waitForTimeout(500);
+    }
+    return false;
   }
 }

@@ -14,6 +14,18 @@ export async function submitClaimStep(ctx: EhrContext, params: ResolvedParams): 
   const claims = new ClaimsPage(ctx.page, ctx.env);
   ctx.log.step("submit-claim", `reason=${reason}`);
   await billing.openOverview();
+  // Claim creation does not ride on force bill everywhere: on fbch34
+  // (2026-09-16) the Insurance Claims section stays empty after billing —
+  // claim generation runs server-side (submitClaims daemon / updateBNRStatus,
+  // see TC32438/TC33301). Fail with that diagnosis instead of a locator
+  // timeout when there is nothing to submit.
+  const existing = await claims.readRows();
+  if (existing.length === 0) {
+    throw new Error(
+      "无 claim 可提交：force bill 后 Insurance Claims 为空。本 box 的 claim 生成依赖服务器侧管线" +
+        "（submitClaims/updateBNRStatus，见 TC32438/TC33301 与 TCS.md SZ35474 备注）。"
+    );
+  }
   await claims.submitClaim(reason);
   await claims.expectSubmitted();
   ctx.scratch.claim = { submitted: true };

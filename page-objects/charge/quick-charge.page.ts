@@ -74,6 +74,17 @@ export class QuickChargePage {
     await this.handlePostSubmitDialogs();
   }
 
+  /** Number of rows currently sitting in the charge queue. */
+  async queueCount(): Promise<number> {
+    return this.page.locator('[data-testid="quick-charge-quantity"]').count();
+  }
+
+  /** True once the charge queue emptied (the observable submit receipt). */
+  async isQueueCleared(): Promise<boolean> {
+    const pending = await this.page.locator('[data-testid="quick-charge-quantity"]').count();
+    return pending === 0;
+  }
+
   /** Known-environment dialogs after submit (see file header). */
   private async handlePostSubmitDialogs(): Promise<void> {
     const review = this.page.getByRole("button", { name: "Submit Charge(s) for Review" });

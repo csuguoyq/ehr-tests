@@ -195,6 +195,9 @@ goals:
       planId:
         type: string
         default: "68888"
+      lastName:
+        type: string
+        default: null   # 可选：固定新患者姓氏（缺省由 step 生成 Testbot_时间戳）
       encounterType:
         type: string
         default: "Inpatient Acute"
@@ -232,6 +235,45 @@ goals:
         type: string
         default: "Testbot automation: force bill/submit past edits"
 
+  void_claim_rebill:
+    aliases: ["作废claim重交", "void claim", "void and rebill"]
+    flow: VoidClaimRebillFlow
+    implemented: true
+    params:
+      mrn:
+        type: string
+        default: null
+      patientName:
+        type: string
+        default: null   # 缺省复用同次编排生成的患者（scratch）
+      forceReason:
+        type: string
+        default: "Testbot automation: force bill/submit past edits"
+
+  transfer_to_insurance:
+    aliases: ["转账到保险", "transfer to insurance", "转账给保险"]
+    flow: TransferToInsuranceFlow
+    implemented: true
+    params:
+      ssn:
+        type: string
+        default: null   # Registration 检索主条件；缺省取 scratch.patient（无则 step 报错）
+      lastName:
+        type: string
+        default: null   # 缺省取 scratch.patient
+      planId:
+        type: string
+        default: "68888"
+      transactionCode:
+        type: string
+        default: "0001"   # Transfer Patient to Insurance
+      amount:
+        type: string
+        default: null   # null = 全额（当前 Guarantor Balance）
+      notes:
+        type: string
+        default: "Testbot automation: transfer to insurance"
+
   lookup_account:
     aliases: ["查找患者", "查询患者", "患者是否存在", "lookup patient"]
     flow: LookupAccountFlow
@@ -243,6 +285,18 @@ goals:
       patientName:
         type: string
         default: null   # 患者姓氏
+
+  open_bnr_detail:
+    aliases: ["打开BNR", "打开患者账户", "open bnr"]
+    flow: OpenBnrDetailFlow
+    implemented: true
+    params:
+      mrn:
+        type: string
+        default: null
+      patientName:
+        type: string
+        default: null   # 缺省取 scratch.patient
 
   coding_complete:
     aliases: ["完成编码", "coding complete", "编码完成"]
@@ -277,7 +331,7 @@ goals:
   discharge:
     aliases: ["出院", "discharge patient", "办理出院"]
     flow: DischargeFlow
-    implemented: false   # 切片中：CPOE2 出院医嘱前置 Provider 查询在本环境返回空候选（见 PROJECT.md）
+    implemented: true   # 2026-09-16 fbch34 实测（SZ35253 链内 + discharge goal）
     params:
       lastName:
         type: string

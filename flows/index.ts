@@ -15,6 +15,10 @@ import { StartBillingFlow } from "./start-billing.flow";
 import { ForceBillFlow } from "./force-bill.flow";
 import { SubmitClaimFlow } from "./submit-claim.flow";
 import { ClaimToSubmittedFlow } from "./claim-to-submitted.flow";
+import { VoidClaimRebillFlow } from "./void-claim-rebill.flow";
+import { TransferToInsuranceFlow } from "./transfer-to-insurance.flow";
+import { OpenBnrDetailFlow } from "./open-bnr-detail.flow";
+import { DischargeFlow } from "./discharge.flow";
 
 export const FLOWS: Record<string, FlowDefinition> = {
   login: LoginFlow,
@@ -27,4 +31,8 @@ export const FLOWS: Record<string, FlowDefinition> = {
   force_bill: ForceBillFlow,
   submit_claim: SubmitClaimFlow,
   claim_to_submitted: ClaimToSubmittedFlow,
+  void_claim_rebill: VoidClaimRebillFlow,
+  transfer_to_insurance: TransferToInsuranceFlow,
+  open_bnr_detail: OpenBnrDetailFlow,
+  discharge: DischargeFlow,
 };

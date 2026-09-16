@@ -12,8 +12,8 @@
 | Charge Services | BNR、Charges、Quick Charge（`ehr/src/Charge`） | P0 | 待调研 | 2 | 部分实现 | | 2026-09-12 |
 | Coding | Diagnosis、ADT、DRG（Charge Services 的 Coding tab） | P0 | 待调研 | 2 | 部分实现 | | 2026-09-12 |
 | CPOE2 | Order Reconcile、Discharge（`ehr/src/OE`） | P0 | 待调研 | 1 | 切片中 | | 2026-09-12 |
-| Billing | Start Billing、Bill Now、Force Bill | P0 | 待调研 | 0 | 已登记 | | 2026-09-11 |
-| Insurance Claims | Submit、Force Submit（`ehr/src/Charge/Claim`） | P0 | 待调研 | 0 | 已登记 | | 2026-09-11 |
+| Billing | Start Billing、Bill Now、Force Bill、Guarantor Balance、Adjustments | P0 | 待调研 | 2 | 部分实现 | | 2026-09-16 |
+| Insurance Claims | Claim 表格（Submit/Void/Resubmit/Replacement kebab、Totals 行）、Adjustment 弹窗（`ehr/src/Charge/Claim`） | P0 | 待调研 | 2 | 部分实现 | | 2026-09-16 |
 
 ## 发现渠道
 
@@ -36,4 +36,4 @@ MODULES.md 用可读注册名；`page-objects/<dir>`、`steps/<dir>` 用既定�
 | Registration | `registration` | |
 | Charge Services | `charge` | Coding 的页面操作也在 `page-objects/charge/`（同一 BNR 详情壳） |
 | CPOE2 | `oe` | 对应 `ehr/src/OE` |
-| Insurance Claims | （未建） | 首个切片时定 |
+| Insurance Claims | `charge`（claims/adjustments PO 与 Billing 同壳） | 2026-09-16 定 |

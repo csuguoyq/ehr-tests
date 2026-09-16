@@ -338,7 +338,49 @@ export class OrderEntryPage {
     const submit = this.page.getByText("Submit", { exact: true }).last();
     await expect(submit).toBeVisible({ timeout: 15_000 });
     await submit.click();
+    // The save dialogs surface only after a server roundtrip — wait for the
+    // first one before sweeping, else the sweep finds nothing and exits.
+    await this.page
+      .locator(
+        ".x-window:has-text('Validation Dialog'):visible, .x-window:has-text('Screening Error'):visible, .x-window:has-text('Order Decision Support'):visible"
+      )
+      .first()
+      .waitFor({ state: "visible", timeout: 20_000 })
+      .catch(() => {});
     await this.handleSaveDialogs();
+    // The "Save Order — printed to COMPROOM" MUI receipt is modal and appears
+    // LATE — the print roundtrip on fbch34 takes 15-35s (observed 2026-09-15)
+    // — and it blocks every further navigation until dismissed. Wait long.
+    const receiptText = this.page.getByText(/printed to COMPROOM/i).first();
+    if (
+      await receiptText
+        .waitFor({ state: "visible", timeout: 60_000 })
+        .then(() => true)
+        .catch(() => false)
+    ) {
+      const okBtn = this.page
+        .locator(".MuiDialog-root:visible, [role=dialog]:visible")
+        .filter({ hasText: /printed to COMPROOM/i })
+        .getByRole("button", { name: "OK" })
+        .first();
+      await expect(okBtn).toBeVisible({ timeout: 10_000 });
+      await okBtn.click();
+      await receiptText.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
+    }
+  }
+
+  /** Dismiss an ExtJS window by its button text, with fallbacks (≤3 tries). */
+  private async dismissXWindow(win: Locator, buttonText: string): Promise<void> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (!(await win.isVisible().catch(() => false))) return;
+      const btn = win.locator(`.x-btn:has-text("${buttonText}")`).first();
+      if (await btn.isVisible().catch(() => false)) {
+        await btn.click().catch(() => {});
+      } else {
+        await win.locator(".x-tool-close").first().click().catch(() => {});
+      }
+      await win.waitFor({ state: "hidden", timeout: 4_000 }).catch(() => {});
+    }
   }
 
   /** Type a provider query and pick the first matching option. */
@@ -363,56 +405,101 @@ export class OrderEntryPage {
     await this.handleSaveDialogs();
   }
 
-  /** The three dialogs this build raises on Save (see file header). */
+  /** The dialogs this build raises on Save (see file header). */
   private async handleSaveDialogs(): Promise<void> {
-    // 1) Screening Error — "Decision Support server is down. Proceed?" → Yes
-    const screening = this.page.locator(".x-window:has-text('Screening Error')").last();
-    if (await screening.isVisible().catch(() => false)) {
-      await screening.getByText("Yes", { exact: true }).click();
-    }
-    // 2) Order Decision Support info → OK
-    const decision = this.page.locator(".x-window:has-text('Order Decision Support')").last();
-    if (await decision.isVisible().catch(() => false)) {
-      await decision.getByText("OK", { exact: true }).click();
-    }
-    // 3) Validation Dialog — password must be entered before OK
-    const validation = this.page.locator(".x-window:has-text('Validation Dialog')").last();
-    if (await validation.isVisible().catch(() => false)) {
-      const pw = validation.locator("input[type=password]").first();
-      await pw.fill(this.env.password);
-      await validation.getByText("OK", { exact: true }).click();
+    // The dialog sequence varies run to run (Screening Error → Decision
+    // Support → Validation Dialog, in any order, sometimes repeated), and a
+    // portal "Screen Lock" window can sit on top and swallow the OK click
+    // (fbch34 2026-09-15). Sweep rounds until no known window remains.
+    for (let round = 0; round < 6; round++) {
+      // 0) Screen Lock overlay — unlock with the session password.
+      const lock = this.page.locator(".x-window:has-text('Screen Lock'):visible").last();
+      if (await lock.isVisible().catch(() => false)) {
+        const lockPw = lock.locator("input[type=password]").first();
+        if (await lockPw.isVisible().catch(() => false)) {
+          await lockPw.fill(this.env.password);
+          await lockPw.press("Enter");
+        }
+        await lock.waitFor({ state: "hidden", timeout: 5_000 }).catch(() => {});
+        continue;
+      }
+      // 1) Screening Error — "Decision Support server is down. Proceed?" → Yes
+      const screening = this.page.locator(".x-window:has-text('Screening Error'):visible").last();
+      if (await screening.isVisible().catch(() => false)) {
+        await screening.getByText("Yes", { exact: true }).click();
+        continue;
+      }
+      // 2) Order Decision Support info → OK
+      const decision = this.page.locator(".x-window:has-text('Order Decision Support'):visible").last();
+      if (await decision.isVisible().catch(() => false)) {
+        await decision.getByText("OK", { exact: true }).click();
+        continue;
+      }
+      // 3) Validation Dialog — username arrives prefilled; submit by pressing
+      //    Enter in the password field (the OK button click is swallowed by
+      //    this build, fbch34 2026-09-15 probe), OK click as fallback.
+      const validation = this.page.locator(".x-window:has-text('Validation Dialog'):visible").last();
+      if (await validation.isVisible().catch(() => false)) {
+        const pw = validation.locator("input[type=password]:visible").first();
+        await pw.fill(this.env.password);
+        await pw.press("Enter");
+        await validation.waitFor({ state: "hidden", timeout: 8_000 }).catch(() => {});
+        if (await validation.isVisible().catch(() => false)) {
+          await validation.locator(".x-btn:has-text('OK')").first().click();
+          await validation.waitFor({ state: "hidden", timeout: 8_000 }).catch(() => {});
+        }
+        continue;
+      }
+      // 3.5) Save Order receipt — a MUI dialog (skills/oe: "MUI 'Save Order'
+      //      dialog ... follows → OK"), NOT an ExtJS window. Find it by the
+      //      COMPROOM text anywhere and confirm via its role=button OK.
+      const receiptText = this.page.getByText(/printed to COMPROOM/i).first();
+      if (await receiptText.isVisible().catch(() => false)) {
+        const okBtn = this.page
+          .locator(".MuiDialog-root:visible, [role=dialog]:visible")
+          .filter({ hasText: /printed to COMPROOM/i })
+          .getByRole("button", { name: "OK" })
+          .first();
+        if (await okBtn.isVisible().catch(() => false)) {
+          await okBtn.click();
+        } else {
+          // fallback: any visible OK button near the text's dialog layer
+          await this.page.getByRole("button", { name: "OK" }).last().click();
+        }
+        await receiptText.waitFor({ state: "hidden", timeout: 8_000 }).catch(() => {});
+        continue;
+      }
+      // Nothing matched this round — a follow-up dialog may still be
+      // surfacing; brief grace, then give up.
+      await this.page.waitForTimeout(2_500);
+      const pending =
+        (await this.page
+          .locator(".x-window:visible")
+          .filter({
+            hasText: /Validation Dialog|Screening Error|Order Decision Support|Screen Lock/,
+          })
+          .count()) ||
+        (await receiptText.isVisible().catch(() => false) ? 1 : 0);
+      if (!pending) break;
     }
   }
 
   /** The order is Active under EXISTING ORDERS (ADT group). */
   /** True when an Active row for the order already exists in EXISTING ORDERS. */
   async hasActiveOrder(orderName: string): Promise<boolean> {
-    return this.page
-      .locator(`tr:has-text("${orderName}"):has-text("Active")`)
-      .first()
-      .isVisible()
-      .catch(() => false);
+    const txt = await this.page.locator("body").innerText().catch(() => "");
+    return new RegExp(`${orderName}[\\s\\S]{0,400}?\\bActive\\b`).test(txt);
   }
 
   async expectOrderActive(orderName: string): Promise<void> {
-    const existing = this.page.locator("text=EXISTING ORDERS").first();
-    await expect(existing).toBeVisible();
-    try {
-      await expect(
-        this.page.locator(`tr:has-text("${orderName}"):has-text("Active")`).first()
-      ).toBeVisible({ timeout: 30_000 });
-    } catch (e) {
-      // Diagnostic: what does the panel actually show (banner? error? row status?)
-      const txt = await this.page.locator("body").innerText();
-      const i = txt.indexOf("EXISTING ORDERS");
-      const panel = i >= 0 ? txt.slice(i, i + 600) : txt.slice(0, 600);
-      const dialogs = await this.page
-        .locator('[role=dialog], .x-window')
-        .allTextContents()
-        .catch(() => []);
-      throw new Error(
-        `医嘱未变 Active。面板：${JSON.stringify(panel)}；弹窗：${JSON.stringify(dialogs.map(d => d.replace(/\s+/g, " ").slice(0, 150)))}`
-      );
-    }
+    // The orders grid is not a <tr> table in this build (fbch34 2026-09-15):
+    // assert on the panel text — the order name must be followed by an
+    // Active status nearby.
+    await expect
+      .poll(async () => {
+        const txt = await this.page.locator("body").innerText().catch(() => "");
+        return new RegExp(`${orderName}[\\s\\S]{0,400}?\\bActive\\b`).test(txt);
+      }, { timeout: 30_000 })
+      .toBe(true);
   }
 }

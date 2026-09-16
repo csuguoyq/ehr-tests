@@ -6,6 +6,7 @@ import { expect } from "@playwright/test";
 import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { PatientTabsPage } from "../../page-objects/registration/patient-tabs.page";
+import { InsurancePage } from "../../page-objects/registration/insurance.page";
 
 const str = (v: unknown, fallback: string) => (typeof v === "string" && v ? v : fallback);
 
@@ -31,9 +32,70 @@ export async function addInsuranceStep(ctx: EhrContext, params: ResolvedParams):
   await radioGroup.locator('input[type="radio"]').first().click();
   await page.getByTestId("add-insurance-dialog-submit-button").click();
 
-  // Save the prefilled "New Insurance" form from the toolbar.
-  const save = page.getByRole("button", { name: /Save and Close|Save/ }).first();
-  await expect(save).toBeEnabled({ timeout: 15_000 });
-  await save.click();
+  // The form leaves many required fields empty (fbch34 2026-09-16: Insurance
+  // Type, Member ID, Effective Date, Relationship, Subscriber section) and
+  // Save stays disabled until they are filled — fill Testbot defaults.
+  const insurance = new InsurancePage(page, ctx.env);
+  const stamp = Date.now().toString().slice(-8);
+  const patient = ctx.scratch.patient as
+    | { lastName?: string; firstName?: string; dob?: string; sex?: string }
+    | undefined;
+  const today = new Date();
+  const mmddyyyy = `${String(today.getMonth() + 1).padStart(2, "0")}/${String(today.getDate()).padStart(2, "0")}/${today.getFullYear()}`;
+  await insurance.pickOption("Insurance Type", /Medical/i);
+  await insurance.fillText("Member ID or #", `TB${stamp}`);
+  await insurance.fillDate("Effective Date", mmddyyyy);
+  await insurance.pickOption("Relationship to Subscriber", /Self/i);
+  // Subscriber mirrors the patient (Self).
+  await insurance.fillText("Subscriber ID", `TB${stamp}`);
+  await insurance.fillText("Subscriber First Name", patient?.firstName || "Auto");
+  await insurance.fillText("Subscriber Last Name", patient?.lastName || "Testbot");
+  await insurance.fillText("Subscriber Address", "123 Main St");
+  await insurance.fillText("Subscriber City", "San Diego");
+  await insurance.pickOption("Subscriber State", /California/i);
+  await insurance.fillText("Subscriber Zip", "92101");
+  await insurance.fillDate("Subscriber D.O.B.", patient?.dob || "01/01/1990");
+  await insurance.pickOption("Subscriber Sex", /Female|Male/i);
+  await insurance.pickOption("Subscriber Country", /United States/i);
+  // The phone field arrives pre-filled with a PARTIAL invalid value.
+  await insurance.fillPhone("Subscriber Phone", "5551234567");
+
+  const save = page.getByRole("button", { name: "Save and Close", exact: true }).first();
+  const saveFallback = page.getByRole("button", { name: "Save", exact: true }).first();
+  if (await save.isVisible().catch(() => false)) {
+    await expect(save).toBeEnabled({ timeout: 30_000 });
+    await save.click();
+  } else {
+    await expect(saveFallback).toBeEnabled({ timeout: 30_000 });
+    await saveFallback.click();
+  }
+  // Saving from the toolbar can leave the form open; the next navigation then
+  // pops an "Unsaved Changes" confirm — resolve it with Save Changes.
+  const unsavedAfterSave = page
+    .locator("[role=dialog], .x-window, .MuiDialog-root")
+    .filter({ hasText: /Unsaved Changes/i })
+    .first();
+  if (await unsavedAfterSave.isVisible().catch(() => false)) {
+    const keepNow = unsavedAfterSave.getByRole("button", { name: /Save Changes/i }).first();
+    if (await keepNow.isVisible().catch(() => false)) {
+      await keepNow.click();
+    }
+  }
   ctx.log.info(`insurance saved (plan ${planQuery})`);
+
+  // A dirty flag can linger after saving; the NEXT navigation (e.g. the
+  // encounter form) then hits an "Unsaved Changes" modal. Provoke it now on
+  // a harmless sub-tab switch and resolve it with Save Changes.
+  await tabs.subTab("Demographics").click();
+  const unsaved = page
+    .locator("[role=dialog], .x-window, .MuiDialog-root")
+    .filter({ hasText: /Unsaved Changes/i })
+    .first();
+  if (await unsaved.isVisible().catch(() => false)) {
+    const keep = unsaved.getByRole("button", { name: /Save Changes/i }).first();
+    await expect(keep).toBeVisible({ timeout: 10_000 });
+    await keep.click();
+    ctx.log.info("unsaved-changes confirm resolved (Save Changes)");
+  }
+  await tabs.openSubTab("Demographics");
 }

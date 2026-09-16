@@ -19,6 +19,13 @@ export async function openPatientRegistrationStep(
 
   const app = new RegistrationAppPage(ctx.page, ctx.env);
   ctx.log.step("open-patient-registration", `ssn=${ssn}`);
+  // A patient chart context replaces the rail's app buttons — REGISTRATION
+  // is not even in the DOM there (fbch34 2026-09-16). Escape via the Cps
+  // census deep link, which rebuilds the full rail.
+  if (!(await app.railButton("REGISTRATION").isVisible().catch(() => false))) {
+    await ctx.page.goto(`${ctx.env.baseUrl}/Cps`, { waitUntil: "domcontentloaded" });
+    await ctx.page.waitForTimeout(2_000);
+  }
   await app.open("REGISTRATION");
 
   const ssnInput = ctx.page.locator('[data-testid="sf-ssn-tf"] input');

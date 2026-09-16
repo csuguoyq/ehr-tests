@@ -28,9 +28,11 @@ export const ClaimToSubmittedFlow: FlowDefinition = {
   description:
     "端到端：新患者 → Inpatient Acute admit+BNR → Quick Charge → Coding Complete → 出院医嘱 → 出院 → Start Billing（必要时 Force Bill）→ Claim Submitted",
   async execute(ctx, params) {
-    // 1. patient + Inpatient Acute + admit + BNR (scratch.patient filled)
+    // 1. patient + insurance (BEFORE billing: SZ33989 — only BNRs with an
+    //    assigned insurance generate claims) + Inpatient Acute + admit + BNR
     await openRegistrationStep(ctx, params);
     await createPatientStep(ctx, params);
+    await addInsuranceStep(ctx, params);
     await createEncounterStep(ctx, params);
     await admitEncounterStep(ctx, params);
     await waitForBnrStep(ctx, params);

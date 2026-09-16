@@ -12,7 +12,10 @@ export async function forceBillStep(ctx: EhrContext, params: ResolvedParams): Pr
   const billing = new BillingPage(ctx.page, ctx.env);
   ctx.log.step("force-bill", `reason=${reason}`);
   await billing.open();
-  if (!(await billing.isForceNeeded())) {
+  // The BNR Edits state can lag the billing call — give the Force Bill
+  // button a short window to appear before concluding it is not needed.
+  const needed = await billing.waitForForceNeeded(20_000);
+  if (!needed) {
     ctx.log.info("force bill not needed (no BNR Edits) — skipping");
     return;
   }

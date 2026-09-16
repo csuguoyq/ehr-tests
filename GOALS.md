@@ -10,8 +10,12 @@
 | discharge | DischargeFlow | CPOE2, Registration | lastName, ssn, dischargeDisposition, providerQuery | 已通过（出院医嘱 + Registration Discharge 2026-09-15 fbch34 实测；待 goal 注册 mrn 参数后开放） |
 | start_billing | StartBillingFlow | Charge Services (Billing tab) | mrn?/patientName?, forceReason（force_bill 用） | 已通过（2026-09-15 fbch34 实测：Start Billing → Bill Now） |
 | force_bill | ForceBillFlow | Charge Services (Billing tab) | mrn?/patientName?, forceReason | 已通过（2026-09-15 fbch34 实测：BNR Edits → Force Submit + 原因 → Force Bill） |
-| claim_submitted | ClaimSubmitFlow | Insurance Claims | encounterId | 未开始 |
+| claim_submitted | ClaimSubmitFlow | Insurance Claims | encounterId | 未开始（被 submit_claim 取代，待清理） |
 | lookup_account | LookupAccountFlow | Charge Services | mrn（最快最准）/ patientName 二选一 | 只读查询：返回账户行（姓名/DOB/MRN/SSN），可做存在性检查 | 新增 2026-09-15 fbch34 实测 |
-| claim_to_submitted | ClaimToSubmittedFlow | 全部 | planId, cpts, qty | 未开始 |
+| open_bnr_detail | OpenBnrDetailFlow | Charge Services | mrn / patientName 二选一 | 只读定位：打开患者 Hospital BNR 详情 | 新增 2026-09-16 fbch34 |
+| claim_to_submitted | ClaimToSubmittedFlow | 全部 | planId, lastName?, cpts, qty, drg/dx 等 | 大部分通过（fbch34 2026-09-16：到 Billed 稳定）；末段 submit-claim 依赖服务器侧 claim 生成，见 TCS.md SZ35474 备注 |
 
+
+| void_claim_rebill | VoidClaimRebillFlow | Charge Services (Billing/Claims) | mrn?/patientName?, forceReason | 已实现（fbch34 2026-09-16）：kebab → Void Claim → 重 billing → 重 Submit；端到端依赖 claim 存在，见 TCS.md SZ35474 |
+| transfer_to_insurance | TransferToInsuranceFlow | Registration, CPOE2, Billing | ssn?/lastName?, planId, transactionCode(0001), amount?(默认全额), notes? | 已实现（fbch34 2026-09-16）：出院→计费（自费落 guarantor 卡）→补保险→0001 转账；SZ35253 缺陷复现见 TCS.md |
 目标按需增加，不预设全量。参数 schema 见 `goals.yaml`。
