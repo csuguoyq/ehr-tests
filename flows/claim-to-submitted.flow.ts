@@ -20,7 +20,6 @@ import { openPatientRegistrationStep } from "../steps/registration/open-patient-
 import { dischargeEncounterStep } from "../steps/registration/discharge-encounter.step";
 import { startBillingStep } from "../steps/charge/start-billing.step";
 import { forceBillStep } from "../steps/charge/force-bill.step";
-import { assignInsuranceBnrStep } from "../steps/registration/assign-insurance-bnr.step";
 import { submitClaimStep } from "../steps/charge/submit-claim.step";
 
 export const ClaimToSubmittedFlow: FlowDefinition = {
@@ -36,9 +35,10 @@ export const ClaimToSubmittedFlow: FlowDefinition = {
     await createEncounterStep(ctx, params);
     await admitEncounterStep(ctx, params);
     await waitForBnrStep(ctx, params);
-    // Assign the coverage to the BNR — an unassigned coverage never produces
-    // claims (SZ35253 manual recording, fbch34 2026-09-16).
-    await assignInsuranceBnrStep(ctx, params);
+    // NOTE: no Assign needed here — insurance registered at encounter
+    // creation auto-associates with the new BNR. Assign is only required
+    // when insurance is added after the BNR already exists (SZ35253 path,
+    // see assign-insurance-bnr.step).
     // 2. quick charges on the fresh BNR
     await openBnrDetailStep(ctx, params);
     await quickChargeStep(ctx, params);
