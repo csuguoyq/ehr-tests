@@ -11,15 +11,20 @@ export async function openPatientRegistrationStep(
   ctx: EhrContext,
   params: ResolvedParams
 ): Promise<void> {
-  const patient = ctx.scratch.patient as { ssn?: string; lastName?: string } | undefined;
+  const patient = ctx.scratch.patient as { ssn?: string; lastName?: string; mrn?: string } | undefined;
+  // MRN is the preferred search key (unique, user convention 2026-09-17);
+  // SSN is the fallback (also unique by generation).
+  const mrn = (typeof params.mrn === "string" && params.mrn) || patient?.mrn;
   const ssn = (typeof params.ssn === "string" && params.ssn) || patient?.ssn;
   const lastName = (typeof params.lastName === "string" && params.lastName) || patient?.lastName;
   const firstName =
     (typeof params.firstName === "string" && params.firstName) || "Auto";
-  if (!ssn || !lastName) throw new Error("open_patient_registration requires ssn and lastName");
+  if ((!mrn && !ssn) || !lastName) {
+    throw new Error("open_patient_registration requires mrn (preferred) or ssn, plus lastName");
+  }
 
   const app = new RegistrationAppPage(ctx.page, ctx.env);
-  ctx.log.step("open-patient-registration", `ssn=${ssn}`);
+  ctx.log.step("open-patient-registration", mrn ? `mrn=${mrn}` : `ssn=${ssn}`);
   // A patient chart context replaces the rail's app buttons — REGISTRATION
   // is not even in the DOM there (fbch34 2026-09-16). Escape via the Cps
   // census deep link, which rebuilds the full rail.
@@ -32,9 +37,11 @@ export async function openPatientRegistrationStep(
   }
   await app.open("REGISTRATION");
 
-  const ssnInput = ctx.page.locator('[data-testid="sf-ssn-tf"] input');
-  await ssnInput.fill(ssn);
-  await ssnInput.press("Enter");
+  const searchInput = ctx.page.locator(
+    mrn ? '[data-testid="sf-mrn-tf"] input' : '[data-testid="sf-ssn-tf"] input'
+  );
+  await searchInput.fill(mrn || (ssn as string));
+  await searchInput.press("Enter");
 
   const nameLink = ctx.page.getByTestId(`cci-patient-name-${lastName}, ${firstName}`).first();
   await nameLink.waitFor({ state: "visible", timeout: 30_000 });

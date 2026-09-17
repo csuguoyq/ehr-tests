@@ -31,7 +31,7 @@
 |---|---|---|---|---|---|---|
 | BNR | rail Charge Services → Account Lookup → 患者 BNR Overview；MUI | P0 | 已通过 | openFromRail, search（按患者名）, openPatientAccount（双击行）, openPatientAccountByMrn（单击姓名格；双击 MRN/SSN 格无效）, openFirstBnrDetail（H 行 Open） | quick_charge | 2026-09-15 |
 | Quick Charge | BNR 详情 Charges tab → Add Charges → Quick Charge 面板 | P0 | 已通过 | openCharges, addCpt（点行入队，吞点击重试）, setQuantities, submit（含 CDM/Error 弹窗防御）, queueCount/isQueueCleared, expectChargesPosted（断言最新行） | quick_charge | 2026-09-16 |
-| Billing (BNR) | BNR 详情 Billing tab → Overview → Unbilled Charges 卡片 | P0 | 已通过 | open, startBilling（Start Billing → Bill Now；BNR Edits 回弹重试）, waitForSettled（Not Yet Billed 消失/Force Bill 出现）, forceBill（"Force Submit" + 必填原因 → Force Bill）, readGuarantorBalance | start_billing, force_bill, transfer_to_insurance | 2026-09-16 |
+| Billing (BNR) | BNR 详情 Billing tab → Overview → Unbilled Charges 卡片 | P0 | 已通过 | open, startBilling（Start Billing → Bill Now；BNR Edits 回弹重试）, waitForSettled（Not Yet Billed 消失/Force Bill 出现）, forceBill（"Force Submit" + 必填原因 → Force Bill）, readGuarantorBalance | start_billing, force_bill, transfer_to_insurance | 2026-09-17（用户实测：①进 Billing 视图后等约 10s 再点 Start Billing，首按即成功——按钮渲染早于服务器侧就绪；②force bill POST 后服务器侧处理约 10s，之后切 tab 才安全。两处 settle 均已在 step 固化） |
 | Adjustments (BNR) | BNR 详情 Billing tab → Adjustments 手风琴 → Add（CciDialog） | P0 | 已通过 | openAddDialog, pickField（Transaction Code/Balance Type，MUI Autocomplete）, resolveAmount（TRANSFER 码自动锁定全额）, setNotes, save | transfer_to_insurance, SZ35253 | 2026-09-16 |
 
 ## Coding

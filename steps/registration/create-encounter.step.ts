@@ -36,6 +36,12 @@ export async function createEncounterStep(ctx: EhrContext, params: ResolvedParam
   const opts = {
     facility: str(params.facility, "San Diego Medical Center - Cove Community Hospital"),
     encounterType: str(params.encounterType, "Inpatient Acute"),
+    // User default (2026-09-17): create as Arrived. ADT types (Inpatient
+    // Acute) fall back to Planned: with status Arrived the create-save button
+    // becomes "Admit Patient" (EncounterForm.tsx submitButtonText) — a direct
+    // admission that stays disabled without a CPOE2 admit order (missingOrder).
+    // The chain admits via the separate Admit action instead.
+    status: str(params.status, "Arrived"),
     expectedDatetime: str(params.expectedDatetime, await expectedDatetime(ctx)),
     guarantorType: str(params.guarantorType, "skip"),
     guarantor: str(params.guarantor, "skip"),
@@ -50,7 +56,16 @@ export async function createEncounterStep(ctx: EhrContext, params: ResolvedParam
   await encounter.clickCreateNewEncounter();
   await encounter.pickAutocomplete("facility", opts.facility);
   await encounter.pickAutocomplete("type", opts.encounterType);
-  await encounter.fillExpectedDatetime(opts.expectedDatetime);
+  // Picking the inpatient type auto-sets status to Planned — override with the
+  // requested status (EncounterStatus.tsx: Arrived needs ADMIT/CHKIN permission).
+  const adtType = opts.encounterType === "Inpatient Acute" || opts.encounterType === "Observation";
+  const effectiveStatus = adtType && opts.status === "Arrived" ? "Planned" : opts.status;
+  if (effectiveStatus !== "Planned" || adtType) {
+    await encounter.pickAutocomplete("status", effectiveStatus);
+  }
+  if (effectiveStatus === "Planned") {
+    await encounter.fillExpectedDatetime(opts.expectedDatetime);
+  }
   await encounter.pickAutocomplete("admitType", opts.admitType);
   // guarantorType "skip" → leave the form defaults untouched (used when a
   // real Person guarantor was added on the Guarantors tab — Entity "Mini Reg
@@ -62,5 +77,11 @@ export async function createEncounterStep(ctx: EhrContext, params: ResolvedParam
     await encounter.pickAutocomplete("guarantor", opts.guarantor);
   }
   await encounter.save("Create Encounter");
-  await encounter.expectStatusSummary("Planned");
+  await encounter.expectStatusSummary(effectiveStatus);
+  if (effectiveStatus !== opts.status) {
+    ctx.log.warn(
+      `status ${opts.status} not applicable to ADT type ${opts.encounterType} ` +
+        `(Arrived + ADT = direct admission, requires a CPOE2 admit order) — used ${effectiveStatus}`
+    );
+  }
 }

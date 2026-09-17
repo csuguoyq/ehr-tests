@@ -23,23 +23,28 @@ export async function startBillingStep(ctx: EhrContext, _params: ResolvedParams)
   // Force Bill state (BNR Edits) needs no Start Billing press — the
   // force-bill step in the flow handles it.
   if (!(await billing.isForceNeeded())) {
-    // BNR Edits (e.g. an unsigned discharge order) can bounce the bill: the
-    // Start Billing button re-appears. Re-press up to 3 times, waiting each
-    // round for either the button to clear or a Force Bill state (the
-    // force-bill step's job) to appear (fbch34 2026-09-16, race observed).
+    // One press should be enough (user 2026-09-17: "点击了就能成功").
+    // User recording note 2026-09-17: after ENTERING the Billing view, wait
+    // a moment before pressing Start Billing — the first POST fired right
+    // after mount does not take server-side (fresh-mount evidence in the
+    // 09-17 run log) even though the button already renders.
+    await ctx.page.waitForTimeout(10_000);
+    // The Billing view does NOT refresh in place after the POST, so the
+    // settle check MUST run on a re-mounted view (tab away + back) — a
+    // settle read on the stale card misses the billed state.
     for (let attempt = 1; attempt <= 3; attempt++) {
       await billing.waitForActionable(15_000);
       await billing.startBilling();
-      const settled = await billing.waitForSettled(25_000);
-      if (!settled) {
-        ctx.log.warn(`bill bounced (BNR Edits) — retry ${attempt}`);
-        continue;
+      await ctx.page.waitForTimeout(10_000);
+      await billing.remountForFreshState();
+      if (
+        (await billing.isStartGone()) ||
+        (await billing.isNotYetBilled() === false) ||
+        (await billing.isForceNeeded())
+      ) {
+        break;
       }
-      // A late BNR-Edits evaluation (e.g. Unsigned Order) can pull the bill
-      // back seconds later — require the settled state to hold for 5s.
-      await ctx.page.waitForTimeout(5_000);
-      if (!(await billing.isNotYetBilled()) || (await billing.isForceNeeded())) break;
-      ctx.log.warn(`bill state regressed after settle — retry ${attempt}`);
+      ctx.log.warn(`bill did not take (fresh mount still offers Start Billing) — retry ${attempt}`);
     }
     if (!(await billing.isForceNeeded())) {
       await billing.expectBilled();

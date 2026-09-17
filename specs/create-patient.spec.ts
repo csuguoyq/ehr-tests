@@ -23,7 +23,7 @@ test("goal-driven create_patient: registration opens -> patient created -> patie
   }
 });
 
-test("goal schema: create_patient is implemented and default params resolve", async ({ ehr }) => {
+test("goal schema: create_patient is implemented and default params resolve", async () => {
   const goals = loadGoals();
   const goal = goals["create_patient"];
   if (!goal) throw new Error("goals.yaml is missing the create_patient goal");

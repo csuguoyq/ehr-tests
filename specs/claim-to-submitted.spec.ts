@@ -51,7 +51,11 @@ test(
   }
 );
 
-test("goal schema: claim_to_submitted is implemented and default params resolve", async ({ ehr }) => {
+// No browser fixtures here: this check is pure Node (goals.yaml schema +
+// param resolution). Requesting no fixture also means NO browser window —
+// previously it launched a blank about:blank window that outlived the real
+// test's window (KEEP_BROWSER_MS) and confused headed runs.
+test("goal schema: claim_to_submitted is implemented and default params resolve", async () => {
   const goals = loadGoals();
   const goal = goals["claim_to_submitted"];
   if (!goal) throw new Error("goals.yaml is missing the claim_to_submitted goal");

@@ -206,6 +206,48 @@ npx playwright test                        # 全量回归
   与 discharge.spec（去 skip 后连续两轮 PASS，各 ~1.7min；首轮一次失败未留痕，
   复跑两轮均绿，按偶发抖动记录）。
 
+### 续跑 + 数据生成修正切片（2026-09-17，fbch34）
+
+用户四条反馈落地（bounce 重试与双浏览器为现象解释，非缺陷）：
+
+- **SSN 尾 4 位随机化**（patient-data.ts）：同分钟运行在旧 HHmm 尾上碰撞；
+  现 tail=1000-9999 随机，头位（年位数和，9→8）+ MMDD 保留。
+- **claim_to_submitted 支持 resume**：`startAt=<stage>` + `lastName` + `mrn`(优先)/`ssn`
+  即可从卡住的 stage 重入链条，复用已有病人（open_patient_registration 按 MRN/SSN
+  检索打开），不再每次全链新建病人。stage 名单见 flow 内 stages 数组；
+  resume 入口走 openPatientRegistrationStep（该步在本轮全链的 discharge 腿实测）。
+- **Encounter Status 默认 Arrived 的边界**（源码 EncounterForm.tsx submitButtonText）：
+  Arrived + ADT 类型(Inpatient Acute)会把创建保存按钮直接变 "Admit Patient"——
+  即直接入院，无 CPOE2 入院医嘱(missingOrder)时按钮恒 disabled；链条的入院走
+  Planned → Admit 动作。故 status 参数默认 Arrived，ADT 类型自动回落 Planned 并打
+  warn；Expected Date/Time 仅 Planned 渲染，条件填写。
+- **force bill 后时序**（用户实测）：10s settle + 切 Charges tab 重挂载
+  （force-bill.step），submit-claim 的 Submit 按钮 30s 可见等待不变。
+- **Start Billing 单次点击修正（2026-09-17 追加，推翻「回弹重试符合设计」）**：
+  用户裁决「点击了就能成功，需要重试说明逻辑不对」。实证两轮：把 settle 检查改到
+  重挂载视图上后首按仍失败（排除陈旧视图误判）；进入 Billing 视图后先等 10s 再
+  首按即一次成功（用户录制口述「要等一下再点」正是此因）——进视图后服务器侧就绪
+  滞后于按钮渲染。start-billing.step 现为：进视图等 10s → 单按 → 10s settle →
+  重挂载判定（未生效才重试 ≤3）。PAGES.md Billing 卡片同步。
+- **现象解释（未改码）**：②spec 第二个 test
+  （goal schema 检查）按 Playwright 测试隔离获得独立浏览器，故看到"关了再开一次"。
+- 验证：tsc 干净、check:goals 绿；fbch34 全链 2/2 PASS（3.8min），仅新建 1 病人
+  （Testbot_2609171129 / ssn 809-17-7949）。
+
+### Start Billing 用户录制沉淀切片（2026-09-17，fbch34）
+
+用户手工录制 Billing Start Billing 全路径（recordings/billing-start.manual.ts，不入库），
+与现有 PO/steps 对照后沉淀：
+
+- 选择器全部对上（Start Billing / confirm-dialog / "Give a justification" textarea /
+  dialog OK testid `dialog-submit-button` 即 role name "Bill Now"/"Force Bill" 同一元素），
+  PO 无需改动。
+- 用户时序观察「打开 Billing 后等一会再点 Start Billing」已由 `waitForActionable` 覆盖。
+- 新增：force bill POST 后服务器侧处理约 10s，期间切 tab 会读到陈旧状态（用户实测）。
+  `force-bill.step.ts` 在 `expectForceBillDone` 后加 10s settle（有注释背书）；
+  仍不做 tab dance（维持 09-16 审查结论，submit-claim 自带重挂载）。
+- 验证：tsc 干净、check:goals 绿；fbch34 无头跑 claim_to_submitted 全链 2/2 PASS（3.4min）。
+
 ### 全量回归 + 修复审查切片（2026-09-17，fbch34）
 
 全量回归 `specs/`：除 TC35474 re-bill 腿（上述服务器侧状态翻转）外全部 PASS；

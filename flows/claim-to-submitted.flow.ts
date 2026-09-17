@@ -28,40 +28,60 @@ export const ClaimToSubmittedFlow: FlowDefinition = {
   description:
     "End to end: new patient -> Inpatient Acute admit+BNR -> Quick Charge -> Coding Complete -> discharge order -> Discharge -> Start Billing (Force Bill if needed) -> Claim Submitted",
   async execute(ctx, params) {
-    // 1. patient + Self guarantor + insurance + Inpatient Acute + admit + BNR
-    //    Guarantor/insurance are REQUIRED before the encounter: Entity "Mini
-    //    Reg Guarantor" cannot match insurance and an uncovered BNR never
-    //    produces claims (SZ35253 convention, mirrors create-encounter.flow —
-    //    without these the Create Encounter save stays disabled / no claim).
-    await openRegistrationStep(ctx, params);
-    await createPatientStep(ctx, params);
-    await addGuarantorSelfStep(ctx, params);
-    if (params.insurance !== false) {
-      await addInsuranceStep(ctx, params);
+    // Resume mode (user instruction 2026-09-17): pass startAt=<stage name> +
+    // the lastName/ssn of an ALREADY CREATED patient to re-enter the chain at
+    // a failed stage instead of creating yet another patient. The patient is
+    // re-opened in Registration by SSN (open_patient_registration), identity
+    // is seeded into scratch, and every stage before startAt is skipped.
+    const startAt = typeof params.startAt === "string" ? params.startAt : "";
+    if (startAt) {
+      const lastName = typeof params.lastName === "string" ? params.lastName : "";
+      const ssn = typeof params.ssn === "string" ? params.ssn : "";
+      const mrn = typeof params.mrn === "string" ? params.mrn : "";
+      if (!lastName || (!ssn && !mrn)) {
+        throw new Error(`resume startAt="${startAt}" requires lastName and (mrn preferred, or ssn) of the existing patient`);
+      }
+      ctx.scratch.patient = { firstName: "Auto", lastName, ssn, mrn };
+      ctx.log.step("resume", `startAt=${startAt} patient=${lastName} mrn=${mrn || "-"} ssn=${ssn || "-"}`);
+      await openPatientRegistrationStep(ctx, params);
     }
-    await createEncounterStep(ctx, params);
-    await admitEncounterStep(ctx, params);
-    await waitForBnrStep(ctx, params);
-    // NOTE: no Assign needed here — insurance registered at encounter
-    // creation auto-associates with the new BNR. Assign is only required
-    // when insurance is added after the BNR already exists (SZ35253 path,
-    // see assign-insurance-bnr.step).
-    // 2. quick charges on the fresh BNR
-    await openBnrDetailStep(ctx, params);
-    await quickChargeStep(ctx, params);
-    // 3. coding (diagnoses + DRG + ADT + Complete)
-    await codingCompleteStep(ctx, params);
-    // 4a. CPOE2 discharge order (needs the patient chart open in Patient Control)
-    await openPatientChartStep(ctx, params);
-    await dischargeOrderStep(ctx, params);
-    // 4b. Registration encounter discharge (needs ssn+lastName — in scratch)
-    await openPatientRegistrationStep(ctx, params);
-    await dischargeEncounterStep(ctx, params);
-    // 5. billing: Start Billing; Force Bill only when BNR Edits appears
-    await openBnrDetailStep(ctx, params);
-    await startBillingStep(ctx, params);
-    await forceBillStep(ctx, params);
-    // 6. claim submit (direct or Force Submit)
-    await submitClaimStep(ctx, params);
+
+    // Stage list: name -> step. Stage names are the startAt vocabulary.
+    const stages: Array<[string, (c: typeof ctx, p: typeof params) => Promise<void>]> = [
+      ["open_registration", openRegistrationStep],
+      ["create_patient", createPatientStep],
+      ["add_guarantor_self", addGuarantorSelfStep],
+      // insurance:false = self-pay mode (SZ35253) — the stage is a no-op there.
+      ["add_insurance", (c, p) => (p.insurance !== false ? addInsuranceStep(c, p) : Promise.resolve())],
+      ["create_encounter", createEncounterStep],
+      ["admit_encounter", admitEncounterStep],
+      ["wait_bnr", waitForBnrStep],
+      ["open_bnr_detail", openBnrDetailStep],
+      ["quick_charge", quickChargeStep],
+      ["coding_complete", codingCompleteStep],
+      ["open_patient_chart", openPatientChartStep],
+      ["discharge_order", dischargeOrderStep],
+      ["open_patient_registration", openPatientRegistrationStep],
+      ["discharge_encounter", dischargeEncounterStep],
+      ["open_bnr_detail_2", openBnrDetailStep],
+      ["start_billing", startBillingStep],
+      ["force_bill", forceBillStep],
+      ["submit_claim", submitClaimStep],
+    ];
+
+    let skipping = Boolean(startAt);
+    for (const [name, step] of stages) {
+      if (skipping) {
+        if (name !== startAt) continue;
+        if (name === "open_patient_registration") continue; // already done by the resume entry
+        skipping = false;
+      }
+      await step(ctx, params);
+    }
+    if (skipping) {
+      throw new Error(
+        `resume startAt="${startAt}" not found. Valid stages: ${stages.map(([n]) => n).join(", ")}`
+      );
+    }
   },
 };

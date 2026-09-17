@@ -8,6 +8,7 @@ import { test, expect } from "../fixtures/ehr.fixture";
 import { runFromInput, runGoal, loadGoals } from "../src/executor/runner";
 import { matchGoal } from "../src/executor/goal-matcher";
 import { resolveParams } from "../src/executor/param-resolver";
+import { loadEhrEnv } from "../src/types/ehr-context";
 
 test("goal-driven login: natural language match -> param resolution -> flow execution", async ({ ehr }) => {
   // Natural-language entry point (runtime uses pure matching, no AI).
@@ -15,13 +16,15 @@ test("goal-driven login: natural language match -> param resolution -> flow exec
   await expect(ehr.page).toHaveTitle(/CliniComp/);
 });
 
-test("goal schema: login param defaults come from env, explicit params override", async ({ ehr }) => {
+test("goal schema: login param defaults come from env, explicit params override", async () => {
+  // Browser-free: config comes from loadEhrEnv(), no page needed.
   const goals = loadGoals();
   const goal = goals["login"];
   if (!goal) throw new Error("goals.yaml is missing the login goal");
 
-  const resolved = resolveParams(goal, { params: { username: ehr.env.username } });
-  if (resolved.username !== ehr.env.username) {
+  const username = loadEhrEnv().username;
+  const resolved = resolveParams(goal, { params: { username } });
+  if (resolved.username !== username) {
     throw new Error(`explicit username did not take effect: ${JSON.stringify(resolved.username)}`);
   }
   const byAlias = matchGoal("login", goals);
