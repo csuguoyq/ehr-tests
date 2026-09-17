@@ -8,7 +8,7 @@ import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
 
 export class PatientTabsPage {
-  readonly page: Page;
+  private readonly page: Page;
   readonly env: EhrEnvConfig;
 
   constructor(page: Page, env: EhrEnvConfig) {

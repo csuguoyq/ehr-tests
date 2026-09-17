@@ -14,15 +14,68 @@ import { expect, type Page, type Locator } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
 
 export class InsurancePage {
-  readonly page: Page;
+  private readonly page: Page;
   readonly env: EhrEnvConfig;
-
-  readonly saveButton: Locator;
 
   constructor(page: Page, env: EhrEnvConfig) {
     this.page = page;
     this.env = env;
-    this.saveButton = page.getByRole("button", { name: /Save and Close|Save/ }).first();
+  }
+
+  // ---- Add Insurance lookup dialog (testids verified fbch34 2026-09-16) ----
+
+  /** Open the Add Insurance lookup dialog from the Insurance sub-tab. */
+  async openLookupDialog(): Promise<void> {
+    await this.page.getByTestId("insurance-add-insurance-button").click();
+  }
+
+  /**
+   * Search the payer/plan lookup (debounced, min 3 chars) and pick the FIRST
+   * matching plan in the results radio list (search by Plan ID yields the
+   * exact plan — first radio is that plan).
+   */
+  async lookupAndPickFirstPlan(planQuery: string): Promise<void> {
+    const search = this.page
+      .locator('[data-testid="add-insurance-lookup-search-field"] input')
+      .or(this.page.locator("#add-insurance-lookup-search-field"))
+      .first();
+    await search.waitFor({ state: "visible", timeout: 15_000 });
+    await search.fill(planQuery);
+    const radioGroup = this.page.getByTestId("add-insurance-radio-group");
+    await radioGroup.waitFor({ state: "visible", timeout: 20_000 });
+    await radioGroup.locator('input[type="radio"]').first().click();
+    await this.page.getByTestId("add-insurance-dialog-submit-button").click();
+  }
+
+  /**
+   * Save the insurance form via the toolbar "Save" (exact — toolbar order is
+   * [Save, Save and Close]; "Save" is the proven path, "Save and Close" stays
+   * disabled in some states, fbch34 2026-09-16), then resolve an "Unsaved
+   * Changes" confirm if the save left the form dirty.
+   */
+  async saveForm(): Promise<void> {
+    const save = this.page.getByRole("button", { name: "Save", exact: true }).first();
+    await expect(save).toBeEnabled({ timeout: 30_000 });
+    await save.click();
+    await this.resolveUnsavedChanges().catch(() => undefined);
+  }
+
+  /**
+   * Resolve an "Unsaved Changes" confirm with "Save Changes" when one is up
+   * (the dirty flag can linger after saving, and the NEXT navigation — e.g.
+   * the encounter form — would otherwise hit the modal). Returns whether a
+   * dialog was found and resolved.
+   */
+  async resolveUnsavedChanges(timeoutMs = 10_000): Promise<boolean> {
+    const dialog = this.page
+      .locator("[role=dialog], .x-window, .MuiDialog-root")
+      .filter({ hasText: /Unsaved Changes/i })
+      .first();
+    if (!(await dialog.isVisible().catch(() => false))) return false;
+    const keep = dialog.getByRole("button", { name: /Save Changes/i }).first();
+    await expect(keep).toBeVisible({ timeout: timeoutMs });
+    await keep.click();
+    return true;
   }
 
   private labelBoxes(label: string): Locator {

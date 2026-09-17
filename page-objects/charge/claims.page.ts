@@ -32,7 +32,7 @@ export function parseDollars(raw: string): number {
 }
 
 export class ClaimsPage {
-  readonly page: Page;
+  private readonly page: Page;
   readonly env: EhrEnvConfig;
 
   readonly submitButton: Locator;

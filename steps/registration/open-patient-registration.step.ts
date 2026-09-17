@@ -36,15 +36,6 @@ export async function openPatientRegistrationStep(
       .toBe(true);
   }
   await app.open("REGISTRATION");
-
-  const searchInput = ctx.page.locator(
-    mrn ? '[data-testid="sf-mrn-tf"] input' : '[data-testid="sf-ssn-tf"] input'
-  );
-  await searchInput.fill(mrn || (ssn as string));
-  await searchInput.press("Enter");
-
-  const nameLink = ctx.page.getByTestId(`cci-patient-name-${lastName}, ${firstName}`).first();
-  await nameLink.waitFor({ state: "visible", timeout: 30_000 });
-  await nameLink.click();
-  await ctx.page.getByRole("tab", { name: `${lastName}, ${firstName}` }).waitFor({ timeout: 20_000 });
+  await app.searchPatient(mrn ? { mrn } : { ssn: ssn as string });
+  await app.openPatientResult(lastName, firstName);
 }

@@ -15,7 +15,7 @@ import { expect, type Page, type Locator } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
 
 export class AdjustmentsPage {
-  readonly page: Page;
+  private readonly page: Page;
   readonly env: EhrEnvConfig;
 
   readonly adjustmentsSection: Locator;

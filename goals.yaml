@@ -211,6 +211,12 @@ goals:
       startAt:
         type: string
         default: null   # resume: stage name to re-enter the chain at (e.g. create_encounter), reusing an existing patient
+      skipStages:
+        type: string
+        default: null   # resume: comma-separated stage names to skip (e.g. quick_charge after a mid-chain failure already posted charges)
+      mrn:
+        type: string
+        default: null   # resume: MRN of the existing patient (preferred search key)
       encounterType:
         type: string
         default: "Inpatient Acute"

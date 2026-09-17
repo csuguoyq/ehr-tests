@@ -10,7 +10,7 @@ import type { EhrEnvConfig } from "../../src/types/ehr-context";
 import { waitLoggedInTitle } from "../../src/utils/wait";
 
 export class LoginPage {
-  readonly page: Page;
+  private readonly page: Page;
   readonly env: EhrEnvConfig;
 
   readonly usernameInput: Locator;

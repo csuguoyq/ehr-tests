@@ -14,7 +14,7 @@ import { expect, type Page, type Locator } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
 
 export class BillingPage {
-  readonly page: Page;
+  private readonly page: Page;
   readonly env: EhrEnvConfig;
 
   readonly billingTab: Locator;
@@ -92,6 +92,33 @@ export class BillingPage {
     return false;
   }
 
+  /**
+   * Wait until Start Billing is actually safe to press (user condition,
+   * 2026-09-17): the charges card shows "Coding Complete" (the server-side
+   * readiness signal — hasCompleteCode milestone rendered as the card's
+   * status text) AND the button is visible and enabled. Replaces the former
+   * blind post-entry settle: polls instead of sleeping, fires as soon as
+   * both hold.
+   */
+  async waitForStartReady(timeoutMs: number): Promise<boolean> {
+    const codingComplete = this.page.getByText("Coding Complete", { exact: true }).first();
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const ready =
+        (await this.startBillingButton.isVisible().catch(() => false)) &&
+        (await this.startBillingButton.isEnabled().catch(() => false)) &&
+        (await codingComplete.isVisible().catch(() => false));
+      if (ready) {
+        // User instruction 2026-09-17: once ready, hold 2 more seconds —
+        // the render signal still leads true server-side readiness.
+        await this.page.waitForTimeout(2_000);
+        return true;
+      }
+      await this.page.waitForTimeout(500);
+    }
+    return false;
+  }
+
   /** Start Billing → confirm the date-range dialog with "Bill Now". */
   async startBilling(): Promise<void> {
     // After discharge the card state can lag the navigation — require the
@@ -162,6 +189,13 @@ export class BillingPage {
     await expect(ok).toBeEnabled({ timeout: 15_000 });
     await ok.click();
     await expect(this.confirmDialog).toBeHidden({ timeout: 20_000 });
+  }
+
+  /** The Adjustments accordion rendered on the open BNR detail. */
+  async expectAdjustmentsAccordion(): Promise<void> {
+    await expect(
+      this.page.locator(".MuiAccordion-root", { hasText: "Adjustments" })
+    ).toBeVisible();
   }
 
   /** Posted proof after force billing: the Force Bill button is gone. */

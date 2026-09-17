@@ -24,7 +24,7 @@ import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
 
 export class CodingPage {
-  readonly page: Page;
+  private readonly page: Page;
   readonly env: EhrEnvConfig;
 
   readonly view: Locator;
@@ -71,7 +71,8 @@ export class CodingPage {
    *   Code Set Source. POA etc. may stay empty; Save Diagnosis is page-level.
    * - Code input: type all but the last character → pick li[role=option]
    *   (same as before; the full code auto-resolves without a list).
-   * - Code Date accepts typed MM/DD/YYYY through the mask input.
+   * - Code Date is picked through the DatePicker calendar (server today); the
+ *   typed-mask path is retired (user instruction 2026-09-17).
    */
   async fillDiagnoses(admitDiagnosis: string, principalDiagnosis: string): Promise<void> {
     await this.diagnosisTab.click();
@@ -83,12 +84,40 @@ export class CodingPage {
     const codes = [admitDiagnosis, principalDiagnosis];
     for (let k = 0; k < codes.length; k++) {
       await this.pickDiagnosisCode(k, codes[k]);
-      const dateInput = this.page.locator("#diagnosis-Code_Date").nth(k);
-      await dateInput.click();
-      await dateInput.fill("");
-      await dateInput.pressSequentially(codeDate, { delay: 40 });
-      await expect(dateInput).toHaveValue(codeDate);
+      await this.pickCodeDate(k, codeDate);
     }
+  }
+
+  /**
+   * Set Code Date through the DatePicker's calendar UI (user instruction
+   * 2026-09-17: pick, don't type). The popper opens on the CURRENT month, so
+   * picking the server's today (box timezone) is a single day-cell click —
+   * fbch34 commits and closes on the day click; a legacy OK button is
+   * clicked if the build keeps the popper open.
+   */
+  private async pickCodeDate(index: number, codeDate: string): Promise<void> {
+    const dateInput = this.page.locator("#diagnosis-Code_Date").nth(index);
+    // The calendar opens via the picker's toggle button next to the input
+    // (clicking the masked input itself does not open the popper — fbch34
+    // 2026-09-17 run evidence).
+    const toggle = dateInput
+      .locator("xpath=..")
+      .locator('button[aria-label*="Choose date"], button[aria-label*="calendar"]');
+    await toggle.first().click();
+    const popper = this.page.locator(".MuiPickersLayout-root");
+    await expect(popper).toBeVisible({ timeout: 10_000 });
+    const dd = String(Number(codeDate.split("/")[1]));
+    await popper
+      .locator("button")
+      .filter({ hasText: new RegExp(`^${dd}$`) })
+      .first()
+      .click();
+    const okButton = popper.getByRole("button", { name: "OK", exact: true });
+    if (await okButton.isVisible().catch(() => false)) {
+      await okButton.click();
+    }
+    await expect(popper).toBeHidden({ timeout: 10_000 });
+    await expect(dateInput).toHaveValue(codeDate);
   }
 
   /** Today's date (MM/DD/YYYY) in the target box's timezone (fbch34: US Pacific). */

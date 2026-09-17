@@ -277,6 +277,30 @@ claim_to_submitted 修复后端到端 PASS。对工作区 09-16 未提交修复�
   Submit，TC35253 回归 **PASS**。create_encounter 现默认加 Self 担保人+保险
   （`insurance:false` = 自费模式），claim_to_submitted 链同步获得 Assign 步骤。
 
+### 选择器权威收口切片（2026-09-17，fbch34）
+
+实施 framework-review-2026-09-17 下一轮第 2/3 项（H2 + H3）与 §2.4：
+
+- **5 个泄漏 step 选择器 PO 化（H2）**：add-insurance 的查找对话框/保存/Unsaved
+  Changes 沉淀进 `InsurancePage`（openLookupDialog / lookupAndPickFirstPlan /
+  saveForm / resolveUnsavedChanges，Unsaved 处理从两遍收口为一处，删 :44 注释
+  死代码）；open-patient-registration 的搜索与结果打开进 `RegistrationAppPage`
+  （searchPatient / openPatientResult）；assign-insurance-bnr 全裸选择器进
+  `AccountsPage`（openBnrEditor / assignCoverage / saveAndConfirm）；
+  add-guarantor-self 新建 `GuarantorsPage`（addSelf）；add-adjustment 的
+  `billing.page.locator(...)` 改为 `BillingPage.expectAdjustmentsAccordion`。
+- **H3 实机裁定**：assign-insurance-bnr 注释承诺的「Assign 不到就重开 editor」
+  从未存在于代码；fbch34 实机回归（claim_to_submitted 全链 PASS）确认纯 30s
+  可见轮询即够——按实机改注释，记录裁定日期。
+- **PO `page` 收 private（§2.4）**：全部 16 个 PO 的 `page: Page` 改 private，
+  step/spec 无法再零成本绕过 PO 写裸选择器；编译器成为守门人。
+- **M1 随 H2 顺带解决**：add-insurance.step 从 101 行减到 ~60 行，分支 ≤3，
+  死代码与重复 Unsaved 处理消除。
+- **验证**：tsc / check-goals 绿；fbch34 无头回归 claim_to_submitted
+  （3.2m，2/2 PASS，覆盖 insurance+guarantor+assign+registration 链）与
+  discharge（1.8m PASS）。中途一次双 spec 连跑失败为 test-results 残留导致
+  的 trace ENOENT 环境抖动，清理后复跑即绿（与改动无关）。
+
 ### order-entry PO 重构切片（2026-09-17，fbch34）
 
 实施 framework-review-2026-09-17 下一轮第 1 项（H1）+ L5 + §2.1 retryUntil 首实现：

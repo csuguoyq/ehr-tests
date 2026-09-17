@@ -3,7 +3,6 @@
 // Amount default: the current Guarantor Balance (full-balance transfer,
 // SZ35253 Test 1 semantics).
 
-import { expect } from "@playwright/test";
 import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { BillingPage } from "../../page-objects/charge/billing.page";
@@ -42,5 +41,5 @@ export async function addAdjustmentStep(ctx: EhrContext, params: ResolvedParams)
 
   ctx.scratch.adjustment = { code, amount, notes };
   ctx.log.info(`adjustment saved (code=${code} amount=${amount})`);
-  await expect(billing.page.locator(".MuiAccordion-root", { hasText: "Adjustments" })).toBeVisible();
+  await billing.expectAdjustmentsAccordion();
 }

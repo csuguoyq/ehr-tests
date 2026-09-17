@@ -10,7 +10,7 @@ import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
 
 export class RegistrationAppPage {
-  readonly page: Page;
+  private readonly page: Page;
   readonly env: EhrEnvConfig;
 
   readonly railButton: (label: string) => Locator;
@@ -35,5 +35,28 @@ export class RegistrationAppPage {
 
   async expectLoaded(): Promise<void> {
     await expect(this.createNewPatientButton).toBeVisible({ timeout: 30_000 });
+  }
+
+  /**
+   * Search a patient by MRN (preferred) or SSN — both primary criteria, a
+   * single value is enough — and submit with Enter.
+   */
+  async searchPatient(key: { mrn?: string; ssn?: string }): Promise<void> {
+    const testId = key.mrn ? "sf-mrn-tf" : "sf-ssn-tf";
+    const searchInput = this.page.locator(`[data-testid="${testId}"] input`);
+    await searchInput.fill(key.mrn || (key.ssn as string));
+    await searchInput.press("Enter");
+  }
+
+  /** Open the first matching result's name link; proves the patient tab. */
+  async openPatientResult(lastName: string, firstName: string): Promise<void> {
+    const nameLink = this.page
+      .getByTestId(`cci-patient-name-${lastName}, ${firstName}`)
+      .first();
+    await nameLink.waitFor({ state: "visible", timeout: 30_000 });
+    await nameLink.click();
+    await this.page
+      .getByRole("tab", { name: `${lastName}, ${firstName}` })
+      .waitFor({ timeout: 20_000 });
   }
 }

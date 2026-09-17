@@ -70,11 +70,23 @@ export const ClaimToSubmittedFlow: FlowDefinition = {
     ];
 
     let skipping = Boolean(startAt);
+    // skipStages (comma list, resume only): drop stages that must NOT re-run
+    // for this patient, e.g. quick_charge after a mid-chain failure already
+    // posted charges.
+    const skip = new Set(
+      typeof params.skipStages === "string" && params.skipStages
+        ? params.skipStages.split(",").map((s) => s.trim())
+        : []
+    );
     for (const [name, step] of stages) {
       if (skipping) {
         if (name !== startAt) continue;
         if (name === "open_patient_registration") continue; // already done by the resume entry
         skipping = false;
+      }
+      if (skip.has(name)) {
+        ctx.log.warn(`stage ${name} skipped (skipStages)`);
+        continue;
       }
       await step(ctx, params);
     }

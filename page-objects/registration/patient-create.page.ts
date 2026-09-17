@@ -20,7 +20,7 @@ import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
 
 export class PatientCreatePage {
-  readonly page: Page;
+  private readonly page: Page;
   readonly env: EhrEnvConfig;
 
   readonly searchMrnInput: Locator;

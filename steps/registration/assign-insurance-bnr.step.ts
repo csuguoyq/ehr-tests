@@ -4,46 +4,19 @@
 // that is registered on the patient but NOT assigned to the BNR never
 // produces claims — this assignment is the step the UI claim pipeline needs.
 
-import { expect, type Page } from "@playwright/test";
 import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { PatientTabsPage } from "../../page-objects/registration/patient-tabs.page";
+import { AccountsPage } from "../../page-objects/registration/accounts.page";
 
 export async function assignInsuranceBnrStep(ctx: EhrContext, _params: ResolvedParams): Promise<void> {
-  const page: Page = ctx.page;
-  const tabs = new PatientTabsPage(page, ctx.env);
+  const tabs = new PatientTabsPage(ctx.page, ctx.env);
+  const accounts = new AccountsPage(ctx.page, ctx.env);
   ctx.log.step("assign-insurance-bnr", "Accounts (BNR) tab → Edit BNR row → Assign coverage → Save");
 
   await tabs.openSubTab("Accounts (BNR)");
-
-  // The overview's second row (row-1) carries the coverage link — its "Edit"
-  // opens the BNR assignment editor (SZ35253 manual recording).
-  const edit = page.getByTestId("bnr-overview-row-1-link").getByText("Edit");
-  await expect(edit).toBeVisible({ timeout: 20_000 });
-  await edit.click();
-
-  // The coverage can take a while to surface in "Available Coverages" after
-  // the insurance save (server-side sync) — poll for the Assign control, and
-  // re-open the editor once if it never shows (stale fetch).
-  // The Assign control is a plain text link inside the row's Action cell
-  // (SZ35253 recording: blue "Assign" text).
-  const assignControl = page.getByText("Assign", { exact: true }).first();
-  await expect(assignControl).toBeVisible({ timeout: 30_000 });
-  await assignControl.click();
-
-  await page.getByTestId("reg-save-changes-button").click();
-
-  // A confirm dialog may follow (ExtJS OK / MUI) — accept either.
-  const extOk = page.locator(".x-window:visible").getByText("OK", { exact: true }).first();
-  if (await extOk.isVisible().catch(() => false)) {
-    await extOk.click();
-  }
-  const muiOk = page
-    .locator("[role=dialog]:visible, .MuiDialog-root:visible")
-    .getByRole("button", { name: /^(OK|Yes)$/ })
-    .first();
-  if (await muiOk.isVisible().catch(() => false)) {
-    await muiOk.click();
-  }
+  await accounts.openBnrEditor();
+  await accounts.assignCoverage();
+  await accounts.saveAndConfirm();
   ctx.log.info("insurance assigned to BNR");
 }

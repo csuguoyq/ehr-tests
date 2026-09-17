@@ -30,7 +30,7 @@ import type { EhrEnvConfig } from "../../src/types/ehr-context";
 import { retryUntil } from "../../src/utils/retry";
 
 export class OrderEntryPage {
-  readonly page: Page;
+  private readonly page: Page;
   readonly env: EhrEnvConfig;
 
   constructor(page: Page, env: EhrEnvConfig) {

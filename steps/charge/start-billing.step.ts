@@ -24,14 +24,15 @@ export async function startBillingStep(ctx: EhrContext, _params: ResolvedParams)
   // force-bill step in the flow handles it.
   if (!(await billing.isForceNeeded())) {
     // One press should be enough (user 2026-09-17: "点击了就能成功").
-    // User recording note 2026-09-17: after ENTERING the Billing view, wait
-    // a moment before pressing Start Billing — the first POST fired right
-    // after mount does not take server-side (fresh-mount evidence in the
-    // 09-17 run log) even though the button already renders.
-    await ctx.page.waitForTimeout(10_000);
+    // Readiness condition (user 2026-09-17, replaces the former 10s blind
+    // settle): the card shows "Coding Complete" AND the button is clickable.
     // The Billing view does NOT refresh in place after the POST, so the
-    // settle check MUST run on a re-mounted view (tab away + back) — a
-    // settle read on the stale card misses the billed state.
+    // settle check MUST run on a re-mounted view (tab away + back).
+    if (!(await billing.waitForStartReady(30_000))) {
+      throw new Error(
+        "Start Billing never became ready: 'Coding Complete' + enabled button did not appear within 30s"
+      );
+    }
     for (let attempt = 1; attempt <= 3; attempt++) {
       await billing.waitForActionable(15_000);
       await billing.startBilling();
