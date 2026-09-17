@@ -21,6 +21,11 @@ export interface EhrEnvConfig {
   /** IANA timezone the box renders dates in (fbch34: US Pacific). Set via
    *  EHR_TZ; date assertions must use this, never a PO-local hardcode. */
   timezone: string;
+  /** SSH target for server-side TC operations, e.g. "guoyq@fbch34".
+   *  Derived as EHR_SSH_USER@EHR_HOST (the address follows the box already in
+   *  use); EHR_SSH_TARGET overrides for special cases (custom port etc.).
+   *  Empty = SSH not configured; server-op steps throw a diagnostic instead. */
+  sshTarget: string;
 }
 
 export function loadEhrEnv(overrides?: Partial<EhrEnvConfig>): EhrEnvConfig {
@@ -33,6 +38,10 @@ export function loadEhrEnv(overrides?: Partial<EhrEnvConfig>): EhrEnvConfig {
     username: overrides?.username || process.env.EHR_USER || "demo",
     password: overrides?.password || process.env.EHR_PASS || "123",
     timezone: overrides?.timezone || process.env.EHR_TZ || "America/Los_Angeles",
+    sshTarget:
+      overrides?.sshTarget ||
+      process.env.EHR_SSH_TARGET ||
+      (process.env.EHR_SSH_USER ? `${process.env.EHR_SSH_USER}@${host}` : ""),
   };
 }
 

@@ -9,6 +9,7 @@
     "build:drv": "tsc -p tsconfig.build.json && node scripts/sync-goals.mjs",
     "check:goals": "node scripts/check-goals.mjs",
     "check:selectors": "node scripts/check-selectors.mjs",
+    "setup:ssh": "node scripts/setup-ssh.mjs",
     "drive:ml": "node drive-ml.js",
     "show-report": "playwright show-report"
   },
@@ -16,6 +17,7 @@
     "@playwright/test": "^1.47.0",
     "@types/node": "^22.0.0",
     "dotenv": "^16.4.5",
+    "ssh2": "^1.17.0",
     "typescript": "^5.6.0"
   },
   "dependencies": {
