@@ -16,8 +16,8 @@ export async function startBillingStep(ctx: EhrContext, _params: ResolvedParams)
   const actionable = await billing.waitForRebillable(480_000);
   if (!actionable) {
     throw new Error(
-      "BNR 未回到可计费状态：重挂载轮询 8 分钟后 Start Billing / Force Bill 均未出现" +
-        "（BNR 状态翻转依赖服务器侧 updateBNRStatus，见 TCS.md 环境备注）。"
+      "BNR never returned to a billable state: after 8 minutes of remount polling neither Start Billing nor Force Bill appeared" +
+        " (BNR status flip depends on the server-side updateBNRStatus, see TCS.md environment notes)."
     );
   }
   // Force Bill state (BNR Edits) needs no Start Billing press — the

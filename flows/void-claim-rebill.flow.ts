@@ -13,7 +13,7 @@ import { submitClaimStep } from "../steps/charge/submit-claim.step";
 export const VoidClaimRebillFlow: FlowDefinition = {
   goal: "void_claim_rebill",
   description:
-    "Void 当前 Submitted claim → Start Billing（必要时 Force Bill）→ 重新 Submit，形成 original→void→new claim 链",
+    "Void the current Submitted claim -> Start Billing (Force Bill if needed) -> submit again, forming an original->void->new claim chain",
   async execute(ctx, params) {
     await openBnrDetailStep(ctx, params);
     await voidClaimStep(ctx, params);

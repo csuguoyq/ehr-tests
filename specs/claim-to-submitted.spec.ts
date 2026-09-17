@@ -18,7 +18,7 @@ import { generateLastName } from "../steps/registration/patient-data";
 import { ClaimsPage } from "../page-objects/charge/claims.page";
 
 test(
-  "goal-driven claim_to_submitted: 创建病人 → 计费 → claim Submitted（host 见 .env）",
+  "goal-driven claim_to_submitted: create patient -> billing -> claim Submitted (host in .env)",
   { tag: "@slow" },
   async ({ authedPage }) => {
     test.setTimeout(900_000); // full revenue cycle incl. the BNR wait
@@ -27,7 +27,7 @@ test(
     // The goal is self-contained: it ends on submitClaimStep, which throws a
     // diagnostic when the box's server-side claim pipeline (submitClaims /
     // updateBNRStatus) produced no claim after billing — that documented
-    // environment block surfaces here as-is (TCS.md 环境备注).
+    // environment block surfaces here as-is (TCS.md environment notes).
     await runGoal(authedPage, "claim_to_submitted", {
       params: { lastName },
     });
@@ -51,14 +51,14 @@ test(
   }
 );
 
-test("goal schema: claim_to_submitted 已实现且默认参数可解析", async ({ ehr }) => {
+test("goal schema: claim_to_submitted is implemented and default params resolve", async ({ ehr }) => {
   const goals = loadGoals();
   const goal = goals["claim_to_submitted"];
-  if (!goal) throw new Error("goals.yaml 缺少 claim_to_submitted 目标");
-  if (goal.implemented === false) throw new Error("claim_to_submitted 应已标记 implemented: true");
+  if (!goal) throw new Error("goals.yaml is missing the claim_to_submitted goal");
+  if (goal.implemented === false) throw new Error("claim_to_submitted should be marked implemented: true");
 
   const resolved = resolveParams(goal, {});
-  if (resolved.admit !== true) throw new Error("claim_to_submitted 默认应 admit: true");
-  if (resolved.waitForBnr !== true) throw new Error("claim_to_submitted 默认应 waitForBnr: true");
+  if (resolved.admit !== true) throw new Error("claim_to_submitted should default to admit: true");
+  if (resolved.waitForBnr !== true) throw new Error("claim_to_submitted should default to waitForBnr: true");
   void resolved;
 });

@@ -21,9 +21,9 @@ export interface ParamSchema {
 }
 
 export interface GoalDefinition {
-  /** goals.yaml 键名；loadGoals 会将其注入，声明处可省略。 */
+  /** goals.yaml key; injected by loadGoals, may be omitted in declarations. */
   name?: string;
-  /** Natural-language aliases, e.g. ["登录", "create patient"]. */
+  /** Natural-language aliases, e.g. ["create patient", "log in"]. */
   aliases: string[];
   /** Flow class/registry key that implements this goal. */
   flow: string;

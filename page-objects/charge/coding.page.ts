@@ -217,7 +217,7 @@ export class CodingPage {
       if (!listed) {
         await providerInput.pressSequentially("s", { delay: 80 });
       }
-      await expect(firstOption, "Select Physician 列表无候选").toBeVisible({ timeout: 15_000 });
+      await expect(firstOption, "Select Physician list has no candidates").toBeVisible({ timeout: 15_000 });
       await firstOption.click();
     }
 

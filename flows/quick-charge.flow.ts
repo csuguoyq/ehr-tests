@@ -9,7 +9,7 @@ import { quickChargeStep } from "../steps/charge/quick-charge.step";
 
 export const QuickChargeFlow: FlowDefinition = {
   goal: "quick_charge",
-  description: "Charge Services → BNR Charges → Quick Charge 提交 CPT 费用",
+  description: "Charge Services -> BNR Charges -> Quick Charge posts CPT charges",
   async execute(ctx, params) {
     await openBnrDetailStep(ctx, params);
     await quickChargeStep(ctx, params);

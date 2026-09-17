@@ -35,7 +35,7 @@ export async function quickChargeStep(ctx: EhrContext, params: ResolvedParams): 
     }
   }
   await charges.setQuantities(qty);
-  // The submit click is occasionally swallowed by the app (PROJECT.md 阶段 3,
+  // The submit click is occasionally swallowed by the app (PROJECT.md phase 3,
   // same failure mode as create-patient): confirm via the queue clearing and
   // re-press when it did not take (≤3 attempts, 15s queue-clear poll each).
   let cleared = false;

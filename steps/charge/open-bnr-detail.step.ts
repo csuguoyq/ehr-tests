@@ -16,7 +16,7 @@ export function resolvePatientName(ctx: EhrContext, params: ResolvedParams): str
     (ctx.scratch.patient as { lastName?: string } | undefined)?.lastName;
   if (!name) {
     throw new Error(
-      "该目标需要 mrn 或 patientName（患者姓氏），或与 create_encounter 在同一次编排中运行以复用其生成的新患者"
+      "This goal requires mrn or patientName (last name), or must run in the same orchestration as create_encounter to reuse its generated patient"
     );
   }
   return name;

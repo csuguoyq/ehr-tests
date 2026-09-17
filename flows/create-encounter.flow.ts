@@ -15,7 +15,7 @@ import { waitForBnrStep } from "../steps/registration/wait-bnr.step";
 export const CreateEncounterFlow: FlowDefinition = {
   goal: "create_encounter",
   description:
-    "Inpatient Acute encounter + Admit（+ 等待 BNR）：patientMode=new 建新患者，existing 按 SSN 打开已有患者",
+    "Inpatient Acute encounter + Admit (+ wait for BNR): patientMode=new creates a new patient, existing opens one by SSN",
   async execute(ctx, params) {
     if (params.patientMode === "existing") {
       // openPatientRegistrationStep itself opens Registration (search by SSN)

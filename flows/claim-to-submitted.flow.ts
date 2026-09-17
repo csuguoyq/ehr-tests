@@ -26,7 +26,7 @@ import { submitClaimStep } from "../steps/charge/submit-claim.step";
 export const ClaimToSubmittedFlow: FlowDefinition = {
   goal: "claim_to_submitted",
   description:
-    "端到端：新患者 → Inpatient Acute admit+BNR → Quick Charge → Coding Complete → 出院医嘱 → 出院 → Start Billing（必要时 Force Bill）→ Claim Submitted",
+    "End to end: new patient -> Inpatient Acute admit+BNR -> Quick Charge -> Coding Complete -> discharge order -> Discharge -> Start Billing (Force Bill if needed) -> Claim Submitted",
   async execute(ctx, params) {
     // 1. patient + Self guarantor + insurance + Inpatient Acute + admit + BNR
     //    Guarantor/insurance are REQUIRED before the encounter: Entity "Mini

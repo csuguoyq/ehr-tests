@@ -6,11 +6,11 @@
 // command the specs' runFromInput call is built for, without the test reporter.
 //
 // Usage:
-//   node drive-ml.js "登录"
-//   node drive-ml.js "登录 EHR"
-//   node drive-ml.js "创建一个 encounter" --preset inpatient_acute_admit
-//   node drive-ml.js "快速收费" --param patientName=Testbot_2609141234 --param cpts=96372,96374 --param qty=10
-//   node drive-ml.js "完成编码" --param patientName=Testbot_2609141234
+//   node drive-ml.js "login"
+//   node drive-ml.js "login to EHR"
+//   node drive-ml.js "create encounter" --preset inpatient_acute_admit
+//   node drive-ml.js "quick charge" --param patientName=Testbot_2609141234 --param cpts=96372,96374 --param qty=10
+//   node drive-ml.js "coding complete" --param patientName=Testbot_2609141234
 //
 // Behavior:
 //   - The phrase is matched to a goals.yaml goal (exact name / alias /
@@ -18,12 +18,12 @@
 //     printed before anything runs, so you can see what the phrase resolved to.
 //   - Most goals assume an authenticated portal (the specs log in first via
 //     the authedPage fixture). If the matched goal is not "login", this driver
-//     logs in first on the same page — so a phrase like "快速收费" just works.
+//     logs in first on the same page — so a phrase like "quick charge" just works.
 //   - --preset / --param are forwarded to the goal's param resolver
 //     (priority: --param > preset > defaults). Numbers/booleans are coerced
 //     so the resolver's type checks pass.
-//   - A goal that is registered but not implemented (e.g. "出院") is reported
-//     and exits cleanly instead of running.
+//   - A goal that is registered but not implemented (e.g. "discharge" before
+//     its slice) is reported and exits cleanly instead of running.
 //
 // Prereq: npx tsc -p tsconfig.build.json     (builds the .build-drv the driver requires)
 // Host/creds from .env. State which host a run used when reporting results.
@@ -43,9 +43,9 @@ function usage(exitCode) {
   console.log(
     "usage: node drive-ml.js \"<natural-language phrase>\" [--preset <preset>] [--param k=v ...]\n" +
       "examples:\n" +
-      "  node drive-ml.js \"登录\"\n" +
-      "  node drive-ml.js \"创建一个 encounter\" --preset inpatient_acute_admit\n" +
-      "  node drive-ml.js \"快速收费\" --param patientName=Testbot_X --param cpts=96372,96374 --param qty=10"
+      "  node drive-ml.js \"login\"\n" +
+      "  node drive-ml.js \"create encounter\" --preset inpatient_acute_admit\n" +
+      "  node drive-ml.js \"quick charge\" --param patientName=Testbot_X --param cpts=96372,96374 --param qty=10"
   );
   process.exit(exitCode);
 }
@@ -102,7 +102,7 @@ console.log = (...a) => {
     process.exit(1);
   }
   fs.copyFileSync(path.join(__dirname, "goals.yaml"), path.join(bdrv, "goals.yaml"));
-  // goals/<domain>.yaml splits (see PROJECT.md 结构与规模阈值) — sync the dir too
+  // goals/<domain>.yaml splits (see PROJECT.md "Structure & size thresholds") — sync the dir too
   const goalsDir = path.join(__dirname, "goals");
   if (fs.existsSync(goalsDir)) {
     const dst = path.join(bdrv, "goals");
@@ -141,7 +141,7 @@ let browser = null;
   // Every goal except login assumes an established session; log in first.
   if (match.goal.name !== "login") {
     console.log("[drv] matched goal is not login — logging in first (same page, shared scratch)");
-    await runFromInput(page, "登录");
+    await runFromInput(page, "login");
   }
 
   const t0 = Date.now();

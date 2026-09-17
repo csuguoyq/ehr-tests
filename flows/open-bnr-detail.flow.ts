@@ -7,7 +7,7 @@ import { openBnrDetailStep } from "../steps/charge/open-bnr-detail.step";
 
 export const OpenBnrDetailFlow: FlowDefinition = {
   goal: "open_bnr_detail",
-  description: "Account Lookup 打开患者（mrn 优先，否则 patientName/scratch）并进入其 Hospital BNR 详情",
+  description: "Open the patient via Account Lookup (mrn first, else patientName/scratch) and enter its Hospital BNR detail",
   async execute(ctx, params) {
     await openBnrDetailStep(ctx, params);
   },

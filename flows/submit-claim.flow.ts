@@ -8,7 +8,7 @@ import { submitClaimStep } from "../steps/charge/submit-claim.step";
 
 export const SubmitClaimFlow: FlowDefinition = {
   goal: "submit_claim",
-  description: "Charge Services → BNR Billing tab：Insurance Claims 的 Submit / Force Submit",
+  description: "Charge Services -> BNR Billing tab: Submit / Force Submit on Insurance Claims",
   async execute(ctx, params) {
     await openBnrDetailStep(ctx, params);
     await submitClaimStep(ctx, params);

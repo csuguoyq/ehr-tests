@@ -13,7 +13,7 @@ export interface GoalMatch {
 }
 
 function normalize(s: string): string {
-  return s.toLowerCase().trim().replace(/[，。!！?？.]/g, "").replace(/_/g, " ");
+  return s.toLowerCase().trim().replace(/[,.!?]/g, "").replace(/_/g, " ");
 }
 
 function tokens(s: string): string[] {
@@ -34,7 +34,7 @@ export function matchGoal(input: string, goals: Record<string, GoalDefinition>):
   const candidates: GoalMatch[] = [];
 
   for (const [key, goalDef] of Object.entries(goals)) {
-    // goals.yaml 用键名标识目标；容许未写 name 字段的声明。
+    // goals.yaml identifies goals by key; declarations without a name field are tolerated.
     const goal: GoalDefinition = { name: key, ...goalDef };
     const goalName = goal.name || key;
     const tryPush = (candidate: string, matchedBy: string, base: number) => {
@@ -52,14 +52,14 @@ export function matchGoal(input: string, goals: Record<string, GoalDefinition>):
 
   if (candidates.length === 0) {
     const known = Object.keys(goals).join(", ");
-    throw new Error(`无法匹配目标：“${input}”。已登记目标：${known || "(none)"}`);
+    throw new Error(`Unable to match goal: "${input}". Registered goals: ${known || "(none)"}`);
   }
 
   candidates.sort((x, y) => y.score - x.score);
   const [best, second] = candidates;
   if (second && second.goal.name !== best.goal.name && Math.abs(best.score - second.score) < 1) {
     throw new Error(
-      `目标“${input}”匹配不唯一：${best.goal.name} vs ${second.goal.name}，请用更明确的说法或 --preset`
+      `Ambiguous match for "${input}": ${best.goal.name} vs ${second.goal.name} — use a more specific phrase or --preset`
     );
   }
   return best;

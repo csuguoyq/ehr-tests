@@ -23,6 +23,6 @@ export async function createSessionApiClient(
   _page: unknown
 ): Promise<APIRequestContext> {
   // TODO(slice: registration-discharge): carry webtoken from the page's
-  // sessionStorage into headers; see PROJECT.md "已知限制" DISCH fallback.
+  // sessionStorage into headers; see PROJECT.md "Known limitations" DISCH fallback.
   return createApiClient(env);
 }

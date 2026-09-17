@@ -3,7 +3,7 @@
 // registered for it. Pure Playwright at runtime: NO AI calls here.
 //
 // Usage from a spec or future CLI:
-//   await runFromInput(page, "创建一个 encounter", { preset: "inpatient_acute_admit" });
+//   await runFromInput(page, "create encounter", { preset: "inpatient_acute_admit" });
 //   await runGoal(page, "login", { username: "demo" });
 
 import type { Page } from "@playwright/test";
@@ -24,7 +24,7 @@ const DATA_DIR = path.resolve(__dirname, "../../data");
 /**
  * Load goals from a single yaml file OR a directory of them (goals/*.yaml,
  * one file per domain once the single file outgrows itself — see PROJECT.md
- * 结构与规模阈值). Duplicate goal keys across files are rejected loudly.
+ * "Structure & size thresholds"). Duplicate goal keys across files are rejected loudly.
  */
 export function loadGoals(yamlPath = GOALS_YAML): Record<string, GoalDefinition> {
   const files: string[] = [];
@@ -32,16 +32,16 @@ export function loadGoals(yamlPath = GOALS_YAML): Record<string, GoalDefinition>
     for (const f of fs.readdirSync(yamlPath).sort()) {
       if (f.endsWith(".yaml") || f.endsWith(".yml")) files.push(path.join(yamlPath, f));
     }
-    if (files.length === 0) throw new Error(`goals 目录为空（无 .yaml 文件）: ${yamlPath}`);
+    if (files.length === 0) throw new Error(`goals directory is empty (no .yaml files): ${yamlPath}`);
   } else {
     files.push(yamlPath);
   }
   const goals: Record<string, GoalDefinition> = {};
   for (const file of files) {
     const parsed = parse(fs.readFileSync(file, "utf8")) as GoalsFile;
-    if (!parsed?.goals) throw new Error(`goals 结构错误：缺少 goals 键 (${file})`);
+    if (!parsed?.goals) throw new Error(`invalid goals file: missing "goals" key (${file})`);
     for (const [key, def] of Object.entries(parsed.goals)) {
-      if (goals[key]) throw new Error(`目标 “${key}” 重复定义：${file} 与先前的 goals 文件冲突`);
+      if (goals[key]) throw new Error(`duplicate goal "${key}": ${file} conflicts with a previously loaded goals file`);
       goals[key] = { name: key, ...def };
     }
   }
@@ -87,8 +87,8 @@ export function getFlow(goalName: string): FlowDefinition {
   const flow = FLOWS[goalName];
   if (!flow) {
     throw new Error(
-      `目标 “${goalName}” 已在 goals.yaml 登记，但 Flow 未实现（见 GOALS.md 状态表）。` +
-        `已实现 Flow：${Object.keys(FLOWS).join(", ") || "(none)"}`
+      `Goal "${goalName}" is registered in goals.yaml but its Flow is not implemented (see GOALS.md status table). ` +
+        `Implemented flows: ${Object.keys(FLOWS).join(", ") || "(none)"}`
     );
   }
   return flow;
@@ -108,7 +108,7 @@ export async function runGoal(
   const goals = loadGoals();
   const goal = goals[goalName];
   if (!goal) {
-    throw new Error(`goals.yaml 中没有目标 “${goalName}”，已登记：${Object.keys(goals).join(", ")}`);
+    throw new Error(`Goal "${goalName}" not found in goals.yaml. Registered: ${Object.keys(goals).join(", ")}`);
   }
   const params = resolveParams(goal, options);
   const flow = getFlow(goalName);
@@ -123,7 +123,7 @@ export async function runFromInput(page: Page, input: string, options: RunOption
   const goals = loadGoals();
   const match = matchGoal(input, goals);
   if (match.goal.implemented === false) {
-    throw new Error(`目标 “${match.goal.name}” 已登记但未实现（matchedBy=${match.matchedBy}）`);
+    throw new Error(`Goal "${match.goal.name}" is registered but not implemented (matchedBy=${match.matchedBy})`);
   }
   // matchGoal guarantees goal.name is populated from the yaml key.
   return runGoal(page, match.goal.name!, options);

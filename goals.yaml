@@ -1,42 +1,42 @@
-# goals.yaml — 目标与参数 schema（声明式，不写代码）。
-# 规则：只登记已确认的目标；implemented: false 表示已登记、Flow 未实现。
-# 参数解析优先级：overrides（命令行/用户）> preset > 默认值。
+# goals.yaml — goals and param schemas (declarative, no code).
+# Rule: register confirmed goals only; implemented: false means registered but Flow not implemented.
+# Param resolution priority: overrides (CLI/user) > preset > defaults.
 
 goals:
   login:
-    aliases: ["登录", "login", "log in", "登录 EHR"]
+    aliases: ["login", "log in", "sign in", "login to EHR"]
     flow: LoginFlow
     implemented: true
     params:
       username:
         type: string
-        default: null   # null = 运行时取 env EHR_USER（见 steps/auth/login.step.ts）
-        description: 门户用户名；缺省用环境默认账号
+        default: null   # null = resolve env EHR_USER at runtime (see steps/auth/login.step.ts)
+        description: portal username; falls back to the environment default account
       password:
         type: string
-        default: null   # null = 运行时取 env EHR_PASS
-        description: 门户密码；缺省用环境默认密码
+        default: null   # null = resolve env EHR_PASS at runtime
+        description: portal password; falls back to the environment default password
 
   create_patient:
-    aliases: ["创建患者", "create patient", "新建患者"]
+    aliases: ["create patient", "new patient", "add patient"]
     flow: CreatePatientFlow
     implemented: true
     params:
-      # 全部可选；null = step 生成默认（姓名 Testbot_时间戳、SSN 日期+时刻、DOB 随机年份）
-      firstName: { type: string, default: null, description: "默认 Auto" }
-      lastName: { type: string, default: null, description: "默认 Testbot_<YYMMDDHHmm>" }
-      ssn: { type: string, default: null, description: "默认 <YY各位和><MMDD><HHmm> 3-2-4；如 2026-09-16 17:44 → 809-16-1744" }
-      dob: { type: string, default: null, description: "MM/DD/YYYY；默认当前月日+随机年份 1980-2005" }
-      address1: { type: string, default: null, description: "默认 123 Main St" }
-      city: { type: string, default: null, description: "默认 San Diego" }
-      state: { type: string, default: null, description: "默认 CA" }
-      zip: { type: string, default: null, description: "默认 92101" }
-      sex: { type: string, default: null, description: "默认随机 Female/Male" }
-      citizenship: { type: string, default: null, description: "默认 US Citizen" }
-      searchMrn: { type: string, default: null, description: "解锁 Create New Patient 的搜索 MRN，默认 90001" }
+      # all optional; null = step generates defaults (name Testbot_<timestamp>, SSN date+time, DOB random year)
+      firstName: { type: string, default: null, description: "defaults to Auto" }
+      lastName: { type: string, default: null, description: "defaults to Testbot_<YYMMDDHHmm>" }
+      ssn: { type: string, default: null, description: "defaults to <digit sum of YY><MMDD><HHmm> grouped 3-2-4; e.g. 2026-09-16 17:44 -> 809-16-1744" }
+      dob: { type: string, default: null, description: "MM/DD/YYYY; defaults to current month/day + random year 1980-2005" }
+      address1: { type: string, default: null, description: "defaults to 123 Main St" }
+      city: { type: string, default: null, description: "defaults to San Diego" }
+      state: { type: string, default: null, description: "defaults to CA" }
+      zip: { type: string, default: null, description: "defaults to 92101" }
+      sex: { type: string, default: null, description: "defaults to random Female/Male" }
+      citizenship: { type: string, default: null, description: "defaults to US Citizen" }
+      searchMrn: { type: string, default: null, description: "search MRN that unlocks Create New Patient, defaults to 90001" }
 
   create_encounter:
-    aliases: ["创建一个 encounter", "create encounter", "新建 encounter"]
+    aliases: ["create encounter", "new encounter"]
     flow: CreateEncounterFlow
     implemented: true
     params:
@@ -52,7 +52,7 @@ goals:
           values: ["new", "api"]
       insurance:
         type: boolean
-        default: true   # false = self-pay 模式（不登记保险，如 SZ35253 前置）
+        default: true   # false = self-pay mode (no insurance registered, e.g. SZ35253 preconditions)
       encounterType:
         type: string
         enum: ["Inpatient Acute", "Outpatient", "Emergency", "Observation"]
@@ -63,36 +63,36 @@ goals:
       waitForBnr:
         type: boolean
         default: null
-      # encounter/admit 数据（阶段 2 切片实测 fbch34）
+      # encounter/admit data (verified on fbch34 during the phase-2 slice)
       facility:
         type: string
-        default: null   # 默认 San Diego Medical Center - Cove Community Hospital
+        default: null   # defaults to San Diego Medical Center - Cove Community Hospital
       expectedDatetime:
         type: string
-        default: null   # MM/DD/YYYY hh:mm；默认浏览器时钟 +1 小时
+        default: null   # MM/DD/YYYY hh:mm; defaults to browser clock +1 hour
       guarantorType:
         type: string
-        default: null   # 新患者仅 Entity
+        default: null   # new patients only accept Entity
       guarantor:
         type: string
-        default: null   # 新患者仅 Mini Reg Guarantor
+        default: null   # new patients only accept Mini Reg Guarantor
       admitType:
         type: string
-        default: null   # 默认 Elective
+        default: null   # defaults to Elective
       pointOfOrigin:
         type: string
-        default: null   # 默认 Home or Self Care
+        default: null   # defaults to Home or Self Care
       meansOfArrival:
         type: string
-        default: null   # 默认 Self
+        default: null   # defaults to Self
       levelOfCare:
         type: string
-        default: null   # 默认 Med-Surg
+        default: null   # defaults to Med-Surg
       bnrTimeoutMs:
         type: number
         default: 180000
-      # 建患者参数透传（new 模式固定姓名时用）；existing 模式下 ssn+lastName
-      # 用来打开已有患者（Registration 检索主条件 = SSN）
+      # create-patient passthrough (used to pin the name in new mode); in existing mode
+      # ssn+lastName open an existing patient (Registration's primary search key = SSN)
       lastName:
         type: string
         default: null
@@ -101,7 +101,7 @@ goals:
           value: "existing"
       firstName:
         type: string
-        default: null   # existing 模式缺省 "Auto"
+        default: null   # defaults to "Auto" in existing mode
       ssn:
         type: string
         default: null
@@ -131,37 +131,37 @@ goals:
         waitForBnr: false
 
   quick_charge:
-    aliases: ["快速收费", "quick charge", "提交费用"]
+    aliases: ["quick charge", "submit charges", "post charges"]
     flow: QuickChargeFlow
     implemented: true
     params:
       mrn:
         type: string
-        default: null   # 按 MRN 直接搜索打开账户（最快最准）；给了 mrn 可省 patientName
+        default: null   # search and open the account directly by MRN (fastest/most precise); patientName can be omitted when mrn is given
       patientName:
         type: string
-        default: null   # 患者姓氏；与 create_encounter 同次编排时可省略（用 scratch）
+        default: null   # patient last name; may be omitted when orchestrated with create_encounter (uses scratch)
       cpts:
         type: string
-        default: "96372,96374"   # 逗号分隔 CPT/HCPCS 码
+        default: "96372,96374"   # comma-separated CPT/HCPCS codes
       qty:
         type: number
         default: 10
 
   start_billing:
-    aliases: ["开始计费", "start billing", "计费"]
+    aliases: ["start billing", "bill"]
     flow: StartBillingFlow
     implemented: true
     params:
       mrn:
         type: string
-        default: null   # 按 MRN 直接打开账户（同 quick_charge）
+        default: null   # open the account directly by MRN (same as quick_charge)
       patientName:
         type: string
-        default: null   # 患者姓氏；与 mrn 二选一
+        default: null   # patient last name; one of mrn/patientName
 
   force_bill:
-    aliases: ["强制计费", "force bill"]
+    aliases: ["force bill"]
     flow: ForceBillFlow
     implemented: true
     params:
@@ -176,7 +176,7 @@ goals:
         default: "Testbot automation: force bill past BNR edits"
 
   submit_claim:
-    aliases: ["提交claim", "提交索赔", "submit claim"]
+    aliases: ["submit claim", "claim submit"]
     flow: SubmitClaimFlow
     implemented: true
     params:
@@ -191,7 +191,7 @@ goals:
         default: "Testbot automation: force submit past rule violations"
 
   claim_to_submitted:
-    aliases: ["端到端", "全流程", "端到端计费", "claim to submitted"]
+    aliases: ["claim to submitted", "end to end", "end-to-end billing", "full flow"]
     flow: ClaimToSubmittedFlow
     implemented: true
     params:
@@ -200,7 +200,7 @@ goals:
         default: "68888"
       lastName:
         type: string
-        default: null   # 可选：固定新患者姓氏（缺省由 step 生成 Testbot_时间戳）
+        default: null   # optional: pin the new patient's last name (default generated by step as Testbot_<timestamp>)
       encounterType:
         type: string
         default: "Inpatient Acute"
@@ -239,7 +239,7 @@ goals:
         default: "Testbot automation: force bill/submit past edits"
 
   void_claim_rebill:
-    aliases: ["作废claim重交", "void claim", "void and rebill"]
+    aliases: ["void claim", "void and rebill"]
     flow: VoidClaimRebillFlow
     implemented: true
     params:
@@ -248,22 +248,22 @@ goals:
         default: null
       patientName:
         type: string
-        default: null   # 缺省复用同次编排生成的患者（scratch）
+        default: null   # defaults to reusing the patient created in the same orchestration (scratch)
       forceReason:
         type: string
         default: "Testbot automation: force bill/submit past edits"
 
   transfer_to_insurance:
-    aliases: ["转账到保险", "transfer to insurance", "转账给保险"]
+    aliases: ["transfer to insurance"]
     flow: TransferToInsuranceFlow
     implemented: true
     params:
       ssn:
         type: string
-        default: null   # Registration 检索主条件；缺省取 scratch.patient（无则 step 报错）
+        default: null   # Registration's primary search key; defaults to scratch.patient (step errors if absent)
       lastName:
         type: string
-        default: null   # 缺省取 scratch.patient
+        default: null   # defaults to scratch.patient
       planId:
         type: string
         default: "68888"
@@ -272,28 +272,28 @@ goals:
         default: "0001"   # Transfer Patient to Insurance
       balanceType:
         type: string
-        default: "Guarantor"   # SZ35253 手工录制：Balance Type 显式选 Guarantor
+        default: "Guarantor"   # SZ35253 manual recording: explicitly pick Guarantor for Balance Type
       amount:
         type: string
-        default: null   # null = 全额（当前 Guarantor Balance）
+        default: null   # null = full amount (current Guarantor Balance)
       notes:
         type: string
         default: "Testbot automation: transfer to insurance"
 
   lookup_account:
-    aliases: ["查找患者", "查询患者", "患者是否存在", "lookup patient"]
+    aliases: ["lookup patient", "find patient", "lookup account"]
     flow: LookupAccountFlow
     implemented: true
     params:
       mrn:
         type: string
-        default: null   # 按 MRN 查（最快最准）；mrn/patientName 二选一
+        default: null   # look up by MRN (fastest/most precise); one of mrn/patientName
       patientName:
         type: string
-        default: null   # 患者姓氏
+        default: null   # patient last name
 
   open_bnr_detail:
-    aliases: ["打开BNR", "打开患者账户", "open bnr"]
+    aliases: ["open bnr", "open patient account"]
     flow: OpenBnrDetailFlow
     implemented: true
     params:
@@ -302,19 +302,19 @@ goals:
         default: null
       patientName:
         type: string
-        default: null   # 缺省取 scratch.patient
+        default: null   # defaults to scratch.patient
 
   coding_complete:
-    aliases: ["完成编码", "coding complete", "编码完成"]
+    aliases: ["coding complete", "complete coding"]
     flow: CodingCompleteFlow
     implemented: true
     params:
       mrn:
         type: string
-        default: null   # 按 MRN 直接搜索打开账户（同 quick_charge）；给了 mrn 可省 patientName
+        default: null   # search and open the account directly by MRN (same as quick_charge); patientName can be omitted when mrn is given
       patientName:
         type: string
-        default: null   # 患者姓氏；与 create_encounter 同次编排时可省略（用 scratch）
+        default: null   # patient last name; may be omitted when orchestrated with create_encounter (uses scratch)
       admitDiagnosis:
         type: string
         default: "I69.941"
@@ -323,7 +323,7 @@ goals:
         default: "S94.10XD"
       drg:
         type: string
-        default: "182"   # 完整码自动选中（无候选列表，同诊断码）；如 "182"
+        default: "182"   # full code auto-selected (no candidate list, same as diagnosis codes); e.g. "182"
       severityIllness:
         type: string
         default: "1 - Minor"
@@ -335,16 +335,16 @@ goals:
         default: "Home or self-care"
 
   discharge:
-    aliases: ["出院", "discharge patient", "办理出院"]
+    aliases: ["discharge", "discharge patient"]
     flow: DischargeFlow
-    implemented: true   # 2026-09-16 fbch34 实测（SZ35253 链内 + discharge goal）
+    implemented: true   # verified on fbch34 2026-09-16 (inside the SZ35253 chain + discharge goal)
     params:
       lastName:
         type: string
-        default: null   # 患者姓氏（必需）
+        default: null   # patient last name (required)
       ssn:
         type: string
-        default: null   # 患者 SSN（Registration 检索主条件，必需）
+        default: null   # patient SSN (Registration's primary search key, required)
       firstName:
         type: string
         default: null
@@ -353,4 +353,4 @@ goals:
         default: "Home or self-care"
       providerQuery:
         type: string
-        default: null   # 不固定 Provider：默认开列表取第一个候选；仅当列表需搜索串时作为兜底
+        default: null   # provider not pinned: open the list and take the first candidate by default; use only as a fallback when the list needs a search string

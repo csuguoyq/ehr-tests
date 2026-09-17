@@ -7,7 +7,7 @@ import { loginStep } from "../steps/auth/login.step";
 
 export const LoginFlow: FlowDefinition = {
   goal: "login",
-  description: "登录 EHR 门户，建立 webtoken 会话",
+  description: "Log into the EHR portal and establish a webtoken session",
   async execute(ctx, params) {
     await loginStep(ctx, params);
   },

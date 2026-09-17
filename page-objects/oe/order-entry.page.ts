@@ -177,7 +177,7 @@ export class OrderEntryPage {
       await this.page.waitForTimeout(1_500);
     }
     if ((await this.addCounter()) === 0) {
-      throw new Error(`勾选 ${orderName} 失败：Add 计数仍为 0（checkbox 与 cell 均未生效）`);
+      throw new Error(`Failed to tick ${orderName}: Add counter still 0 (neither checkbox nor cell click took effect)`);
     }
 
     const addButton = this.page.getByRole("button", { name: /^Add \([1-9]\d*\)$/ }).last();
@@ -198,7 +198,7 @@ export class OrderEntryPage {
         )
         .catch(() => "(no inputs)");
       throw new Error(
-        `Add 按钮仍不可用；inputs: ${inputs}\nBROWSE ORDERS 尾部：${text.slice(-1200)}`
+        `Add button still disabled; inputs: ${inputs}\nBROWSE ORDERS tail: ${text.slice(-1200)}`
       );
     }
     await this.clickWithFallback(addButton);
@@ -212,7 +212,7 @@ export class OrderEntryPage {
    * authorizing) is coaxed open via ArrowDown. There is deliberately NO
    * generic typed fallback: this panel filters STARTSWITH over a fixed
    * choice list, so a broad query like "tes" can never match (verified
-   * fbch34, PROJECT.md 阶段 5) — a box needing a typed query must pass
+   * fbch34, PROJECT.md phase 5) — a box needing a typed query must pass
    * providerQuery (goals.yaml discharge.providerQuery).
    */
   private async fillAuthorizingProvider(providerQuery?: string): Promise<void> {
@@ -265,7 +265,7 @@ export class OrderEntryPage {
         .evaluate((el) => (el.parentElement?.parentElement?.outerHTML ?? "").slice(0, 300))
         .catch(() => "(no html)");
       throw new Error(
-        `Provider 候选项未出现（ArrowDown 未逼出固定列表；若本 box 需要键入查询串，请在 goals.yaml 的 discharge.providerQuery 配置）；inputs=[${dump}]；字段 DOM: ${html}`
+        `Provider candidates never appeared (ArrowDown did not force the fixed list; if this box needs a typed query, configure discharge.providerQuery in goals.yaml); inputs=[${dump}]; field DOM: ${html}`
       );
     }
 
@@ -311,7 +311,7 @@ export class OrderEntryPage {
         .first()
         .evaluate((el) => el.parentElement?.parentElement?.innerText ?? "")
         .catch(() => "(no panel)");
-      throw new Error(`打不开 ORDER DETAILS；NEW ORDERS 面板：${panel.slice(-600)}`);
+      throw new Error(`Cannot open ORDER DETAILS; NEW ORDERS panel: ${panel.slice(-600)}`);
     }
   }
 
