@@ -3,6 +3,7 @@
 - **对象**：ehr-tests 全仓（99 个跟踪文件：代码 ~5,630 行 + 文档 MD ~1,340 行）
 - **方法**：三路并行审查（架构文档与状态表 / 代码分层与质量 / 运行配置与测试规范）+ 关键发现逐条人工复核（GOALS.md、flows/index.ts、specs/discharge.spec.ts、playwright.config.ts、scripts/check-goals.mjs、goals.yaml、tsconfig.build.json 均已实读确认）
 - **修订（2026-09-17 复核）**：三路逐条核查 61 条论断（代码层 20 / 文档层 17 / 基建层 24），修正 7 处错误/行号偏移、补充 15 处遗漏发现（D13-D17、I10-I13、L5 等）——本版为修正后文本
+- **增量（2026-09-17 晚）**：全仓非 md 文件已英文化（M5⑤ 随之修复）；goals.yaml 重写后仍 356 行，全部行号引用复核仍有效（仅 login.spec 一处偏移已更新）；新增 I14（CI 失败根因 = 项目无 runner）
 - **结论先行**：核心设计扎实，"运行时零 AI"是构造性保证（全代码零 AI 依赖、无后门路径）。主要债务集中在四处：**文档-代码漂移无工具拦截、策略层缺失导致同一模式 3-6 处重复手写、order-entry PO 膨胀、一致性/超时/入门基建缺失。**
 
 ---
@@ -105,7 +106,7 @@ PROJECT.md:100-106 定义了阈值，现状：
 | M2 | 同一策略 3-6 处重复实现 | 见 §2.1 表 |
 | M3 | Flow 参数 if 灰区（对照铁律 7「参数组合是数据，不是分支」）：`claim-to-submitted.flow.ts:39` `if (params.insurance !== false)`；`create-encounter.flow.ts:20,32,38` 三处参数分支 | `flows/` |
 | M4 | 脆弱选择器面（均有注释背书，属 UI 微改即断类别）：页级 `li[role=option]` **18 处**（6 个 PO，仅靠 hasText/.first() 区分，依赖"此刻只有一个打开的 listbox"时序约定）；位置假设 `#diagnosis-Code_Date.nth(k)`（`coding.page.ts:86`）、`input[placeholder="Make Selection"].nth(1)`（:198）、`inputs.nth(count-1)`（`order-entry.page.ts:229`）；xpath 8 处（范围受限）；placeholder 依赖文案（`login.page.ts:26-27` 等）；innerText regex 当断言/读金额（`order-entry:516,526`、`billing.page.ts:182` `readGuarantorBalance`、`claims.page.ts:178-182,27-32`）。无长 CSS 路径、无绝对 xpath——这一项干净 | 多处 |
-| M5 | **6 处过期注释/skip**（状态表与代码事实脱节的实证）：① `flows/index.ts:3-5` 头注「discharge NOT registered yet」与同文件 :21/:37 实际注册**直接矛盾**；② `specs/discharge.spec.ts:1-9,15` 头注「IN PROGRESS」+ `test.skip` 是**纯历史残留**——discharge flow 已注册、goals.yaml:340 `implemented: true`（09-16 fbch34 实测）、GOALS.md/TCS.md 均记已通过，skip 掩盖了"discharge 其实已可回归"的事实；③ specs/sz 三个文件头注路径未随 SZ→TC 改名更新；④ `specs/sz/TC35474-claim-totals.spec.ts:34-38` 注释「force bill 不生成 claim」已被 2026-09-17 结论推翻（TCS.md 环境备注）；⑤ `drive-ml.js:25`（Behavior 说明行）仍以「出院」为 "registered but not implemented" 示例——discharge 已 implemented: true，示例过期 | 多处 |
+| M5 | **5 处过期注释/skip**（状态表与代码事实脱节的实证）：① `flows/index.ts:3-5` 头注「discharge NOT registered yet」与同文件 :21/:37 实际注册**直接矛盾**；② `specs/discharge.spec.ts:1-9,15` 头注「IN PROGRESS」+ `test.skip` 是**纯历史残留**——discharge flow 已注册、goals.yaml:340 `implemented: true`（09-16 fbch34 实测）、GOALS.md/TCS.md 均记已通过，skip 掩盖了"discharge 其实已可回归"的事实；③ specs/sz 三个文件头注路径未随 SZ→TC 改名更新；④ `specs/sz/TC35474-claim-totals.spec.ts:34-38` 注释「force bill 不生成 claim」已被 2026-09-17 结论推翻（TCS.md 环境备注）；⑤ ~~drive-ml.js 过期「出院」示例~~（**已修复**：2026-09-17 英文化时改写为通用表述） | 多处 |
 
 ### 3.3 低
 
@@ -155,15 +156,16 @@ PROJECT.md:100-106 定义了阈值，现状：
 | I4 | **每 test 完整登录一次**（authedPage test 级）：全量回归 10 spec 即 10 次完整登录；token 登录依赖 box `/logon/login` 端点行为（环境敏感） | `fixtures/auth.fixture.ts:17-27`；PROJECT.md:142 自认 | 按铁律 8「第二次需要时再抽象」，可接受；worker 级/storageState 待复用时做 |
 | I5 | **环境切换无机制**：仅 `EHR_HOST` 手编 .env，无 `.env.<host>` profile；config 头注反复警告"不同 host 是不同物理机"，但没有任何机制防止用错 host 跑 | `playwright.config.ts:14-16` | 长期项 |
 | I6 | **凭据兜底过宽**：.env 缺失时 `loadEhrEnv()` **静默兜底 demo/123** 而不是报错；.env 被 3 处独立 dotenv 加载（config:18 / ehr-context:11 / drive-ml:35）；本地 .env 常驻观察模式（HEADLESS=0 + SLOW_MO=500 + KEEP_BROWSER_MS=10000），本地没有"回归无头"开关，任何人新开会话直接 `npm test` 就是有头慢速跑——且这就是当前 `.env` 的实况（.env.example:15 有"CI/回归必须保持无头"文字警告，无机制兜底） | `src/types/ehr-context.ts:30-31`；`.env:11-15` | 建议 .env 缺失时报错而非静默；提供 `HEADLESS=1` 回归惯例 |
-| I7 | **单测混入 e2e 套件**：login（:18-29 goal schema、:31-52 goal matching）/create-patient（:26-38）/claim-to-submitted（:54-64）里的纯逻辑测试不需要 UI，却挂在 e2e 目录、拉起浏览器 fixture，全量回归白跑，且无独立单测入口 | `specs/login.spec.ts` 等 3 文件 | 可拆到 `tests/unit/` 或 `src/executor/*.test.ts` |
+| I7 | **单测混入 e2e 套件**：login（:18-29 goal schema、:31-53 goal matching）/create-patient（:26-38）/claim-to-submitted（:54-64）里的纯逻辑测试不需要 UI，却挂在 e2e 目录、拉起浏览器 fixture，全量回归白跑，且无独立单测入口 | `specs/login.spec.ts` 等 3 文件 | 可拆到 `tests/unit/` 或 `src/executor/*.test.ts` |
 | I8 | **drive-ml 隐式构建同步**：`drive-ml.js:98-120` 运行前手工同步 goals.yaml/data/*.json 进 `.build-drv`（tsc 不拷非 TS 资产）；`.build-drv` 被 gitignore，新机器 clone 后直接 `drive:ml` 会失败（有报错提示但属手工环节） | `drive-ml.js` | 可接受（有提示），文档化即可 |
 | I9 | **错误无分类**：环境阻塞（等服务器侧 claim 管线/BNR 状态翻转）与真实失败都抛普通 Error，靠 TCS.md 文档区分；报告层面看不出 | `submit-claim.step.ts:27-30`、TC35474 轮询 | 建议 `EnvBlockedError` 错误类 |
 | I10 | `require("playwright")` 但 package.json 只声明 `@playwright/test`——靠传递依赖提升，换包管理器/提升策略即断 | `drive-ml.js:31` | package.json 显式声明即可 |
 | I11 | CI 无 artifacts/cache：junit 写到 `test-results/ehr-junit.xml` 但不上传，CI 产出丢弃；package.json 缺 `check:goals` script（CI 直接 `node scripts/check-goals.mjs`，本地无法 `npm run` 复现 CI 检查） | `.gitlab-ci.yml:9-15`、`package.json` | 补 artifacts + script |
 | I12 | 零 lint / 零版本锚定：无 ESLint/Prettier/.nvmrc/engines（CI 用 node:20，本地无约束）；`tsconfig.json:9` 显式关 `noUncheckedIndexedAccess`，与 strict 宣传不完全相符 | 仓库根、`tsconfig.json` | 长期项 |
 | I13 | 登录凭据拼进 URL query 传给 POST /logon/login（凭据可能进访问日志/代理历史，框架无脱敏） | `api/auth.ts:23-25` | 端点行为约束，记录即可 |
+| I14 | **CI 从未真正运行过**：项目没有任何已注册 runner、实例共享 runner 全部离线——历史 16 条 pipeline 无一 success，全部排队至死（#665 的 job `started_at: null`、排队 10 小时后判失败）。代码本身无问题：HEAD 提交在干净目录完整复现 CI 三步（`npm ci` → `build:drv` → `check-goals`）全部通过。恢复需管理员恢复共享 runner，或注册自建 runner；另 main 分支受保护禁止直推，改动只能走 MR 合入 | GitLab runners 设置、`.gitlab-ci.yml` | 基建项，与 I11 一并处理 |
 
-**做得对的**：`workers:1` 纯串行（对共享物理 box 正确，避免并发互扰）；`forbidOnly: !!CI`、`retries: CI?1:0` 合理；junit/html/list 三 reporter 齐全；`viewport:null` 跟随真实窗口（避免 ExtJS 布局失真）；CI（.gitlab-ci.yml）做 typecheck + check-goals 但不跑 e2e（需网络可达 box）——边界划得清楚。
+**做得对的**：`workers:1` 纯串行（对共享物理 box 正确，避免并发互扰）；`forbidOnly: !!CI`、`retries: CI?1:0` 合理；junit/html/list 三 reporter 齐全；`viewport:null` 跟随真实窗口（避免 ExtJS 布局失真）；CI（.gitlab-ci.yml）做 typecheck + check-goals 但不跑 e2e（需网络可达 box）——边界划得清楚（但受 I14 影响：无 runner，该 job 至今未真正执行过）。
 
 ---
 
@@ -241,7 +243,7 @@ PROJECT.md:100-106 定义了阈值，现状：
 
 1. **CI 一致性门**：扩展 `scripts/check-goals.mjs`（§6.2①）；先在修文档前跑一次，预期红报 `submit_claim` 缺 GOALS.md 行 + 幽灵行 `claim_submitted`，证明门有效。
 2. **文档漂移清理**（§4 的 D1-D17）：GOALS.md 6 处（含 D17 start_billing 参数列）+ PAGES.md 5 处（D7 billing_billed ×2、D13 add_insurance、D14 表切割、D15 Discharge 卡）+ MODULES.md 双写与 Coding 计数（D9/D16）+ PROJECT.md 2 处 + README/AGENTS 各 1 处。
-3. **代码过期注释/skip 清理**（§3.2 M5 的 6 处）：含 `specs/discharge.spec.ts` 去 `test.skip`（flow 已注册、09-16 实测通过，skip 是历史残留）——改后需 fbch34 无头验证。
+3. **代码过期注释/skip 清理**（§3.2 M5 的 5 处，⑤ 已随英文化修复）：含 `specs/discharge.spec.ts` 去 `test.skip`（flow 已注册、09-16 实测通过，skip 是历史残留）——改后需 fbch34 无头验证。
 4. **`str()` 入 `src/utils`**（L1，纯机械移动，10 个文件）。
 5. **NEW_MODULE.md 手册**（§6.2②③）+ AGENTS.md 会话必读加引用。
 6. **验证**：`npm run build:drv && node scripts/check-goals.mjs` 绿 → fbch34 无头跑 discharge.spec + login.spec 抽查 → 通过后 commit/push。
@@ -277,3 +279,4 @@ PROJECT.md:100-106 定义了阈值，现状：
 实读复核（非仅 agent 转述）：`GOALS.md`、`flows/index.ts`、`specs/discharge.spec.ts`、`playwright.config.ts`、`scripts/check-goals.mjs`、`goals.yaml`（:1-70、:337-356）、`tsconfig.json`、`tsconfig.build.json`、`package.json`。
 agent 通读（含行号引用）：PROJECT.md / AGENTS.md / MODULES.md / PAGES.md / TCS.md / README.md 全文；`page-objects/` 15 文件、`steps/` 23 文件（22 个 `*.step.ts` + `patient-data.ts`）、`flows/` 15 文件、`specs/` 10 文件、`src/` 8 文件、`fixtures/` + `api/` 4 文件、`.gitlab-ci.yml`、`.env`/`.env.example`、`recordings/`。
 2026-09-17 复核：三路并行逐条核查 61 条论断（代码 20 / 文档 17 / 基建 24），绝大多数属实、行号精确率高；修正 7 处（wait.ts 行号与表述、order-entry 头注引位、drive-ml.js 行号、tsconfig.build.json 行号 ×2、login.spec 行号、统计口径），遗漏发现已并入正文（D13-D17、I10-I13、L5、§2.1 表 +1 行、§2.6 +1 条、§6.1/§6.2 补注）。
+2026-09-17 晚二次复核：英文化改动落地后重新对照——goals.yaml 重写仍 356 行、goals.yaml 全部行号引用不变；仅 login.spec :31-52→:31-53 一处偏移；M5⑤ 确认已修复并标记；新增 I14（CI 无 runner 根因，16/16 pipeline 排队至死的实证）。
