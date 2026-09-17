@@ -99,8 +99,8 @@ docs/status/<域>.md           # PAGES/GOALS 超阈值后外置；MODULES.md 永
 
 ### 触发阈值（按此调整，平时不动）
 
-- `flows/`、`specs/` 目标 >15 个 → 加域层目录。
-- `goals.yaml` >300 行 → 拆 `goals/<域>.yaml`（加载器已兼容单文件与目录两种形态，重复目标键会报错）。
+- `flows/`、`specs/` 目标 >15 个 → 加域层目录。**当前 flows 已注册 14 个目标，逼近阈值——下一个目标加入即触发域层评估（2026-09-17 审查记录）。**
+- `goals.yaml` >300 行 → 拆 `goals/<域>.yaml`（加载器已兼容单文件与目录两种形态，重复目标键会报错）。**当前 356 行已越线，待专门架构轮拆分（2026-09-17 审查记录，平时不顺手动）。**
 - `PAGES.md` >300 行或单模块 >10 张页面卡 → 外置 `docs/status/`，MODULES.md 留链接。
 - 目录调整只在专门的架构轮做，不顺带切片（铁律 9）。
 - `drive-ml.js` 是文档化的 CLI 入口（`npm run drive:ml`），固定在根目录，不挪 `scripts/`。
@@ -133,7 +133,6 @@ npx playwright test                        # 全量回归
 
 - 登录必须经 `logon?ctrl=cps` 入口建立 webtoken；直接开模块 URL 得到的是无会话壳。
 - ExtJS 登录表单两个输入框必须顺序填写（并行填写会竞态：username 为空、password 拼接）。
-- BNR 自动创建需等待几分钟（后续收费切片）。
 - CDM Conflict 后的 "Error Submitting" 弹窗是误报，dismiss 即可（后续收费切片）。
 - DRG 182 在测试环境常为 None，可选（后续编码切片）。
 - Registration Discharge 按钮可能 disabled，需走 DISCH API fallback（`api/` 预留）。
@@ -181,6 +180,31 @@ npx playwright test                        # 全量回归
 - SZ35474 TC01/TC02 断言已固化（`specs/sz/TC35474-claim-totals.spec.ts`）。2026-09-17
   复诊：链推进到 claim Submitted + void 成功；仅 re-bill 腿等待 BNR 状态从 Billed
   翻回可计费（依赖服务器侧 updateBNRStatus），8 分钟重挂载轮询未翻转即诊断报错。
+
+### 一致性门 + 审查清理切片（2026-09-17，fbch34）
+
+按 `docs/framework-review-2026-09-17.md`「本轮建议」实施：
+
+- **check-goals 扩展为一致性门**（`npm run check:goals`）：goals.yaml `implemented: true` ↔
+  `flows/index.ts` FLOWS 注册表双向校验（含 flow goal 字段核对）、implemented goal ↔ GOALS.md
+  行双向校验（抓幽灵行/缺行）、specs 的 `runGoal("<name>")` 字面量引用存在性。修文档前实测
+  抓到 `submit_claim` 缺 GOALS.md 行；清理后全绿。
+- **文档漂移清理（审查报告 D1-D17）**：GOALS.md 重写（删幽灵行 claim_submitted、补
+  submit_claim、修表断裂/malformed/参数错、登记 outpatient preset）；PAGES.md（删
+  billing_billed / add_insurance 幽灵引用、修表断裂、Discharge 与 Insurance Claim Table
+  卡片状态同步、「Portal」节更名「Patient Control」）；MODULES.md（已实现页面计数对齐
+  PAGES.md、Billing 双写矛盾澄清）；PROJECT.md（删过时已知限制「BNR 需等几分钟」、
+  阈值越线记录：goals.yaml 356 行待架构轮拆、flows 14/15 逼近域层阈值）；README/AGENTS
+  （三张→四张状态表、preset 注释过时、状态文件清单补 TCS.md）。
+- **代码过期注释/skip 清理**：flows/index.ts 头注「discharge 未注册」删除；
+  discharge.spec.ts 去 test.skip（09-16 已实测通过，skip 是历史残留）；sz 三个 spec
+  头注路径随 SZ→TC 改名更新；TC35474 spec 注释按 2026-09-17 修正结论改写（force bill
+  会生成 claim，此前「不生成」是折叠手风琴误读）。
+- **`str()` 抽入 `src/utils/params.ts`**（原 10 个 step 文件逐字重复定义）。
+- **NEW_MODULE.md 手册**：分步 checklist + 文件模板 + 十条稳定性实践（AGENTS.md 必读已引用）。
+- 验证：`npx tsc --noEmit` 干净；check:goals 绿；fbch34 无头跑 login.spec（3/3 PASS）
+  与 discharge.spec（去 skip 后连续两轮 PASS，各 ~1.7min；首轮一次失败未留痕，
+  复跑两轮均绿，按偶发抖动记录）。
 
 ### 全量回归 + 修复审查切片（2026-09-17，fbch34）
 

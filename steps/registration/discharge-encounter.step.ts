@@ -5,8 +5,8 @@ import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { PatientTabsPage } from "../../page-objects/registration/patient-tabs.page";
 import { EncounterPage } from "../../page-objects/registration/encounter.page";
+import { str } from "../../src/utils/params";
 
-const str = (v: unknown, fallback: string) => (typeof v === "string" && v ? v : fallback);
 
 export async function dischargeEncounterStep(
   ctx: EhrContext,

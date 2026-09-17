@@ -1,4 +1,4 @@
-// specs/SZ35474-claim-totals.spec.ts — TC35474 (SZ35474, 2026):
+// specs/sz/TC35474-claim-totals.spec.ts — TC35474 (SZ35474, 2026):
 // "Insurance Claims Total Charges Inflated When Void/Cancel and Replacement
 // Claims Exist".
 //
@@ -11,7 +11,7 @@
 // payer control number, so the "replacement" leg of the chain is the freshly
 // re-billed claim).
 //
-//   npx playwright test specs/SZ35474-claim-totals.spec.ts
+//   npx playwright test specs/sz/TC35474-claim-totals.spec.ts
 
 import { test, expect } from "../../fixtures/auth.fixture";
 import { runGoal } from "../../src/executor/runner";
@@ -31,11 +31,11 @@ test(
       params: { lastName },
     });
 
-    // Prerequisite for TC01/TC02: a claim must exist to void. On fbch34
-    // (2026-09-16) force bill does NOT create the claim — the Insurance
-    // Claims section stays empty and claim creation apparently relies on the
-    // server-side pipeline (submitClaims daemon / updateBNRStatus, per
-    // TC32438/TC33301). Fail loudly with that diagnosis when absent.
+    // Prerequisite for TC01/TC02: a claim must exist to void. (2026-09-17
+    // correction of the 09-16 note: force bill DOES create the claim in the
+    // UI — the earlier "no claim" readout was an automation misdiagnosis on
+    // the collapsed Insurance Claims accordion. ClaimsPage expands + remounts
+    // before reading.) Fail loudly with a diagnosis when still absent.
     const claims = new ClaimsPage(authedPage, loadEhrEnv());
     await expect
       .poll(async () => (await claims.readRows()).length, { timeout: 30_000 })

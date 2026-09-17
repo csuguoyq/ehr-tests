@@ -1,18 +1,15 @@
-// specs/discharge.spec.ts — phase-5 slice "discharge" (IN PROGRESS).
+// specs/discharge.spec.ts — "discharge" goal regression (phase-5 slice,
+// verified on fbch34 2026-09-15/16): create an admitted encounter, place the
+// CPOE2 discharge order, then discharge from Registration and assert the
+// encounter left In Progress.
 //
-// The Registration half is built (encounterDischarge gated on a CPOE2 order)
-// and the CPOE2 order picker is solved down to the pre-Add "Authorizing
-// Provider" field, whose lookup returns NO candidates for the freshly created
-// test patients in this environment (see PROJECT.md phase 5). The goal is not
-// registered in flows/index.ts yet, so this spec is skipped instead of red.
-//
-//   npx playwright test specs/discharge.spec.ts   # skipped until unblocked
+//   npx playwright test specs/discharge.spec.ts
 
 import { test, expect } from "../fixtures/auth.fixture";
 import { runGoal } from "../src/executor/runner";
 import { generateLastName, generateSsn } from "../steps/registration/patient-data";
 
-test.skip(
+test(
   "goal-driven discharge: CPOE2 discharge order -> Registration Discharge Patient",
   { tag: "@slow" },
   async ({ authedPage }) => {

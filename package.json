@@ -7,6 +7,7 @@
     "test": "playwright test",
     "test:login": "playwright test specs/login.spec.ts",
     "build:drv": "tsc -p tsconfig.build.json",
+    "check:goals": "node scripts/check-goals.mjs",
     "check:selectors": "node scripts/check-selectors.mjs",
     "drive:ml": "node drive-ml.js",
     "show-report": "playwright show-report"

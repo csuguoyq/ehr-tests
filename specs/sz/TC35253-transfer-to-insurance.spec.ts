@@ -1,4 +1,4 @@
-// specs/SZ35253-transfer-to-insurance.spec.ts — TC35253 (SZ35253, 2026):
+// specs/sz/TC35253-transfer-to-insurance.spec.ts — TC35253 (SZ35253, 2026):
 // "Transaction #0001 Transfer Patient to Insurance Not Working Correctly".
 //
 //   Test 1 — Adjustments → Add → 0001 (Transfer Patient to Insurance) with

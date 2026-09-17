@@ -5,8 +5,8 @@
 import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { OrderEntryPage } from "../../page-objects/oe/order-entry.page";
+import { str } from "../../src/utils/params";
 
-const str = (v: unknown, fallback: string) => (typeof v === "string" && v ? v : fallback);
 
 export async function dischargeOrderStep(ctx: EhrContext, params: ResolvedParams): Promise<void> {
   const disposition = str(params.dischargeDisposition, "Home or self-care");

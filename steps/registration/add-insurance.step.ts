@@ -7,8 +7,8 @@ import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { PatientTabsPage } from "../../page-objects/registration/patient-tabs.page";
 import { InsurancePage } from "../../page-objects/registration/insurance.page";
+import { str } from "../../src/utils/params";
 
-const str = (v: unknown, fallback: string) => (typeof v === "string" && v ? v : fallback);
 
 export async function addInsuranceStep(ctx: EhrContext, params: ResolvedParams): Promise<void> {
   const planQuery = str(params.planId, "68888");

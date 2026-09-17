@@ -4,8 +4,8 @@
 import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { BillingPage } from "../../page-objects/charge/billing.page";
+import { str } from "../../src/utils/params";
 
-const str = (v: unknown, fallback: string) => (typeof v === "string" && v ? v : fallback);
 
 export async function forceBillStep(ctx: EhrContext, params: ResolvedParams): Promise<void> {
   const reason = str(params.forceReason, "Testbot automation: force bill past BNR edits");

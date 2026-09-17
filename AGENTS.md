@@ -7,10 +7,11 @@
 
 1. [PROJECT.md](PROJECT.md) — 架构分层、铁律、结构与规模阈值、最终目标（North Star）、与 ehr/tests 的关系
 2. [MODULES.md](MODULES.md) / [PAGES.md](PAGES.md) / [GOALS.md](GOALS.md) / [TCS.md](TCS.md) — 状态表（模块注册 / 页面状态 / 目标状态 / TC 映射）
+3. 新模块/新 goal 切片前读 [NEW_MODULE.md](NEW_MODULE.md) — 分步 checklist + 文件模板 + 稳定性实践
 
 ## 铁律速查（全文以 PROJECT.md 为准）
 
-- 每轮只做一个垂直切片；完成后更新 goals.yaml + 三张状态表 + PROJECT.md 已知限制
+- 每轮只做一个垂直切片；完成后更新 goals.yaml + 四张状态表（MODULES / PAGES / GOALS / TCS）+ PROJECT.md 已知限制；`npm run check:goals` 过一致性门
 - Flow 只编排；Page Object 不写业务 if；Step ≤3 分支；固化执行的运行时禁止调用 AI
 - 选择器以 Page Object 为唯一权威；交互会话里验证的选择器必须沉淀回 Page Object
 - 写/改 Page Object、step 前，先看实现再动手：① 读 skills 文档 `$CCSRC_PATH/skills/ehr-workflow/<模块>/SKILL.md`（按需读其指向的 workflow 文件）与 `ehr-ui/browser-testing`；模块无 skills 覆盖或文档不含目标细节时，直接 grep 源码（`$CCSRC_PATH/ehr/src/<模块>`，搜 label 文本/testid/组件名）确认表单结构、字段、按钮文案与交互路径。CCSRC_PATH 在 `.env` 配置（默认 `../ccsrc`；路径不存在则跳过、退回运行时探测）。源码是草稿、实机是权威：两者不符时以实机为准，并把差异记录进 PROJECT.md
