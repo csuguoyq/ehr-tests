@@ -218,6 +218,32 @@ export class BillingPage {
     return Number(amounts[amounts.length - 1].replace(/[$,]/g, "")) * (neg ? -1 : 1);
   }
 
+  /**
+   * BNR detail header pair "BNR Status: <value>" (ccsrc
+   * common/components/header: CommonHeader.tsx + DynamicInformation.tsx).
+   * SZ33286: when the server reports claim edits (regerrortooltips), the
+   * status TEXT no longer reads "Claim Edits" — a red status icon renders
+   * next to the pair and the WHOLE pair is the MUI Tooltip trigger carrying
+   * the edit text. Returns both the rendered text and the tooltip ("" when
+   * no claim edits are reported).
+   */
+  async readBnrStatusHeader(): Promise<{ text: string; tooltip: string }> {
+    const label = this.page.getByText(/BNR Status:/).first();
+    await expect(label).toBeVisible({ timeout: 20_000 });
+    const group = label.locator("xpath=ancestor::div[1]");
+    const text = (await group.innerText()).trim();
+    let tooltip = "";
+    try {
+      await label.hover();
+      const tip = this.page.locator(".MuiTooltip-tooltip:visible").first();
+      await tip.waitFor({ state: "visible", timeout: 4_000 });
+      tooltip = (await tip.innerText()).trim();
+    } catch {
+      /* no tooltip attached — no claim edits reported by the server */
+    }
+    return { text, tooltip };
+  }
+
   /** Poll for a Force Bill state (BNR Edits) to appear. */
   async waitForForceNeeded(timeoutMs: number): Promise<boolean> {
     const deadline = Date.now() + timeoutMs;

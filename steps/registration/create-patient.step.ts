@@ -52,6 +52,14 @@ export async function createPatientStep(ctx: EhrContext, params: ResolvedParams)
       ctx.log.warn(`duplicate warning — force create (attempt ${attempt + 1})`);
       await create.forceCreateDespiteDuplicate();
     } else {
+      // "open" can be a late success (the main dialog still finishing its
+      // close after a force-create, fbch34 2026-09-17 TC35118 run 1) — re-
+      // check the created-patient condition before re-submitting.
+      const tabVisible = await ctx.page
+        .getByRole("tab", { name: `${patient.lastName}, ${patient.firstName}` })
+        .isVisible()
+        .catch(() => false);
+      if (tabVisible) break;
       ctx.log.warn(`submit click swallowed — retry ${attempt + 1}`);
       await create.submit();
     }

@@ -168,12 +168,18 @@ export class PatientCreatePage {
    * asynchronously, so poll until it shows OR the main dialog closes.
    * "open" = the dialog stayed open without a warning (the click was
    * swallowed by the app before — retrying the click fixes it).
+   *
+   * Ordering matters (fbch34 2026-09-17, TC35118 run 1): the MAIN dialog's
+   * closure is checked FIRST — after a force-create succeeds the DUPLICATE
+   * dialog lingers for a moment while it detaches, and checking it first
+   * misreports "duplicate" on a finished creation, which then re-clicks the
+   * detaching dialog and times out.
    */
   async waitForSubmitOutcome(timeoutMs = 8000): Promise<"duplicate" | "closed" | "open"> {
     const t0 = Date.now();
     for (;;) {
-      if (await this.isDuplicateWarning()) return "duplicate";
       if (!(await this.dialog.isVisible().catch(() => false))) return "closed";
+      if (await this.isDuplicateWarning()) return "duplicate";
       if (Date.now() - t0 > timeoutMs) return "open";
       await this.page.waitForTimeout(250);
     }
@@ -183,9 +189,22 @@ export class PatientCreatePage {
    * The duplicate warning's own "Create New Patient" button force-creates
    * (skipDuplicateCheck). Test data uses a unique name + fresh SSN, so the
    * warning is the soft score-based one and forcing through is correct.
+   *
+   * A landed click closes the warning dialog (the app's handler calls
+   * setOpen(false) before the async create), so WAIT for it to hide before
+   * returning: the caller's outcome poll must not read the pre-commit DOM
+   * and misreport "duplicate" on a create that already succeeded (fbch34
+   * 2026-09-17, TC35118 run 2: the blind re-click then hung 20s on the
+   * detached button while the patient had in fact been created).
    */
   async forceCreateDespiteDuplicate(): Promise<void> {
     await this.page.getByTestId("duplicate-patient-create-new-patient-button").click();
+    await this.duplicateDialog()
+      .waitFor({ state: "hidden", timeout: 3_000 })
+      .catch(() => {
+        /* still up after the window: the click was not dispatched — the
+           caller's outcome poll will report "duplicate" and retry */
+      });
   }
 
   /** Success = dialog closed + a patient tab "<last>, <first>" is open. */

@@ -14,6 +14,7 @@
 | lookup_account | LookupAccountFlow | Charge Services | mrn（最快最准）/ patientName 二选一 | 只读查询：返回账户行（姓名/DOB/MRN/SSN），可做存在性检查；新增 2026-09-15 fbch34 实测 |
 | open_bnr_detail | OpenBnrDetailFlow | Charge Services | mrn / patientName 二选一 | 只读定位：打开患者 Hospital BNR 详情；新增 2026-09-16 fbch34 |
 | claim_to_submitted | ClaimToSubmittedFlow | 全部 | planId, lastName?, cpts, drg/dx 等 | **已通过（端到端）**（fbch34 2026-09-17）：force bill → claim 生成 → Submitted 全链 PASS。已固化为 `specs/claim-to-submitted.spec.ts` |
+| claim_to_errored | ClaimToErroredFlow | 全部 | 同 claim_to_submitted（无 submit 尾段） | 新增（fbch34 2026-09-17，TC35118）：链止于 Force Bill，终点态 = claim Errored + BNR "Claim Edits Needed"（红色图标 tooltip，SZ33286）。已固化为 `specs/sz/TC35118-claim-edits-needed.spec.ts` |
 | void_claim_rebill | VoidClaimRebillFlow | Charge Services (Billing/Claims) | mrn?/patientName?, forceReason | 大部分通过（fbch34 2026-09-17）：void 成功（Void/Cancel 行出现）；re-bill 腿需 BNR 状态从 Billed 翻回可计费（服务器侧 updateBNRStatus），现以 8 分钟重挂载轮询等待，未翻转则诊断报错（见 TCS.md SZ35474） |
 | transfer_to_insurance | TransferToInsuranceFlow | Registration, CPOE2, Billing | ssn?/lastName?, planId, transactionCode(0001), balanceType(Guarantor), amount?(默认全额), notes? | **已通过**（fbch34 2026-09-16，SZ35253 回归 PASS）：出院→计费→补保险→Assign 到 BNR→0001 转账（guarantor 归零 + claim 生成）。前置：患者须有 Person 担保人且保险已 Assign（见 TCS.md） |
 

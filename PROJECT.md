@@ -99,7 +99,7 @@ docs/status/<域>.md           # PAGES/GOALS 超阈值后外置；MODULES.md 永
 
 ### 触发阈值（按此调整，平时不动）
 
-- `flows/`、`specs/` 目标 >15 个 → 加域层目录。**当前 flows 已注册 14 个目标，逼近阈值——下一个目标加入即触发域层评估（2026-09-17 审查记录）。**
+- `flows/`、`specs/` 目标 >15 个 → 加域层目录。**当前 flows 已注册 15 个目标（claim_to_errored 加入后）——域层评估已触发，留待后续架构轮实施（2026-09-17 审查记录 + TC35118 切片更新）。**
 - `goals.yaml` >300 行 → 拆 `goals/<域>.yaml`（加载器兼容单文件与目录两种形态，重复目标键会报错）。**已于 2026-09-17 架构轮拆分完成：auth / registration / charge / claims 四文件，根 goals.yaml 删除（消除双份拷贝漂移窗口）。**
 - `PAGES.md` >300 行或单模块 >10 张页面卡 → 外置 `docs/status/`，MODULES.md 留链接。
 - 目录调整只在专门的架构轮做，不顺带切片（铁律 9）。
@@ -141,7 +141,11 @@ npx playwright test                        # 全量回归
 - 登录 fixture（authedPage）为 test 级：每个 test 完整登录一次；test 数增多后可考虑 worker 级 / storageState 复用（待第二次需要时再抽象）。
 - 本地 `ehr/src` 工作树 ≠ 目标 box 部署构建：`encounters-status-summary`、`encounterDetails-discharge-button` 等 8 个选择器在 fbch34 构建中存在、当前分支源码中没有；`npm run check:selectors` 报告的缺失需逐条人工判断。
 - authedPage 默认 token 登录（`api/auth.ts`），UI 登录仅作兜底与 login spec 的被测对象。
+- SSH 服务器操作（TC 中途需在 box 上跑脚本）：能力已落地并在 fbch34 实机验证（`src/utils/ssh.ts` + `steps/server/run-script.step.ts` 白名单注册表；免密密钥 + `EHR_SSH_TARGET` 已配置，见 SSH 切片）。注意：服务器脚本有执行窗口（如 restart-ruleexecd 停摆约 10–15s），有规则引擎依赖的后台任务运行时不要触发。
 - box 时区 ≠ 本地时区（fbch34 为美西时间）：日期类断言需按 box 的「今天」判定（见 SZ35266 spec 的 today/yesterday 双候选）；2026-09-16 复跑实测 census ADMIT DATE = 09/15/2026（命中 yesterday 候选）。
+- 同日多次跑患者生成时，DOB 随机年（1980–2005）可能撞上已有 Testbot 记录的年份 → 软分 POTENTIAL DUPLICATE（Duplicate Score 4/6）；force-create（"Create New Patient"）是既定兜底。PO 在 force-create 点击后须等 warning dialog 收起再返回（run-1/run-2 根因：250ms 轮询读到提交前 DOM 误报 duplicate，盲重点已 detach 的按钮）。
+- BNR "Claim Edits Needed"（SZ33286）：文本**不在** "BNR Status: <value>" 头部里，而在其旁红色图标的 MUI Tooltip 中（CommonHeader 的 label/value 整对为 tooltip trigger）；`BillingPage.readBnrStatusHeader` hover 标签读取 `{text, tooltip}`。force bill 后 BNR 状态由服务器 updateBNRStatus 翻转，有延迟——断言走有界重挂载轮询（6 轮 × 10s，先见 "Ready to Bill / Claim Created" 后见 "Claim Edits..."）。
+- 规则引擎表面：命名 worklist 规则存 sqlite `$CCRUN/conf/rule/rule.db` 表 `ruleslists`（id/staffid/name/category/definition JSON）；IN35118 部署的 3 份 rule.rcf 在 `$CCRUN`（live 与模板 diff 即可非破坏性校验部署态）；ruleexecd 存活 = `ps -ef | grep [r]uleexecd`。fbch34 mysql 惯例 `-ucci -pcci` 是**连写** = user `cci` / password `cci`（空格形态 `-u ucci` 被拒，`-u cci` 通过；`runMysqlStep` 一律传 user `cci`）。
 
 ### 切片（2026 claim TC：SZ35253 + SZ35474，2026-09-16，fbch34）
 
@@ -360,6 +364,115 @@ claim_to_submitted 修复后端到端 PASS。对工作区 09-16 未提交修复�
   一次且明细未保留（当时只留了 tail）；复跑两轮全绿，结合链路对服务器侧
   claim 管线时序的已知敏感（TCS.md 环境备注），裁定与重构无关，但明细
   缺失记为教训：回归日志要完整落盘。
+
+### SSH 服务器操作能力切片（2026-09-17，fbch34 实机验证）
+
+为「TC 中途需在服务器上执行脚本再回 UI 继续」类场景落地基础设施（用户 2026-09-17 指定形态：SSH 执行 shell 脚本），并完成首个真实 server op 的实机打通：
+
+- **`src/utils/ssh.ts` `runRemoteCommand(env, command)`**：BatchMode + accept-new
+  host key + ConnectTimeout，命令永不来自 goal 参数；失败抛带 stderr 的诊断。
+- **`steps/server/run-script.step.ts` `SERVER_SCRIPTS` 白名单注册表**：flow 只能按
+  名字选用已注册脚本（共享 box 安全边界）。首个注册项 `restart-ruleexecd`
+  = `/eerun/bin/.dosu /fbch/daemons/RESTART_RULEEXECD`（用户首个真实需求）。
+- **env**：`EHR_SSH_TARGET`（user@host，默认空=未配置，step 报诊断而非执行），
+  .env.example 已注明；本机 .env 已设 `guoyq@10.2.2.34`。
+- **免密配置（测试机侧）**：原 `~/.ssh/id_rsa` 带 passphrase，BatchMode 下无法
+  签名——新建无 passphrase 专用对 `id_rsa_automation`，`~/.ssh/config` 的
+  10.2.2.34 / fbch34 条目加 IdentityFile，公钥装进 box 的 authorized_keys。
+  已脚本化为 `npm run setup:ssh`（`scripts/setup-ssh.mjs`，幂等）：.env 只需
+  `EHR_SSH_USER`（box OS 账号）+ `EHR_SSH_PASS` 两行，**地址跟随 `EHR_HOST`**
+  （sshTarget = `EHR_SSH_USER@EHR_HOST`，`EHR_SSH_TARGET` 仅作特殊覆盖）。
+  密码经 ssh2 一次性登录装钥（纯内存，不进命令行），自动做权限体检
+  （box 的 stat 无 -c，用 `ls -ld` 解析）与 `~/.ssh/config` 去重补丁，最终
+  BatchMode 探针通过才算成功；运行时链路永远只走密钥，密码装完可删。
+  切 `EHR_HOST` 到已 onboard 的 box 无需重做，新 box 一次性执行。前提：box
+  允许该用户密码登录。2026-09-17 实机回归两轮（删钥→自动装回→验证，含
+  config 去重）+ EHR_HOST 派生链路（`guoyq@fbch34` 运行时/幂等探针）全部通过。
+- **实机验证**：`restart-ruleexecd` 执行 3 次全部干净完成（父/子 stop → start，
+  exit 0）；框架代码路径用编译产物做无副作用验证（Node→ssh.exe echo 往返、
+  白名单拒绝未注册脚本、sshTarget 派生正确）——两个入口
+  （drive-ml.js / playwright.config.ts）都从项目根加载 .env，均覆盖。
+- **规则（campus 无关，2026-09-17 用户指出后修正）**：白名单命令**禁止写死
+  campus 路径前缀**（/fbch、/fooc、/smh 各站布局不同）；统一形态 =
+  `. /etc/.profile >/dev/null 2>&1; <PATH 可解析的名字>`——profile 建立站点
+  自己的环境（EERUN/CCRUN/PATH），裸名由站点 PATH 解析（fbch34 实测
+  `.dosu`→/eerun/bin、`RESTART_RULEEXECD`/`RESTART_MPISYNCD`→/fbch/daemons，
+  均为只读解析验证，未重启守护进程）。
+- **ycql 封装（`runYcqlStep`，2026-09-17 用户裁定形态）**：边界收在「封装
+  ycql 这个能力」——SQL 语句是测试数据（同 UI 输入框级别），不预设语句
+  白名单（TC 用任意查询/更新，先例 TC31453）；白名单的是**表面**：SQL 只能
+  经 ycql 以 cis 身份执行，进不了 shell。目标槽位严格校验：`dbpath` 匹配
+  `volN/pNNNN`、`dbfile` 限 `$CCRUN/workdir/<dir>/<name>.db`、SQL ≤4000
+  字符；完整 SQL 进日志（报告证据）。fbch34 实机验证：queryrcmrule 经框架
+  链路返回完整 JSON（5.6s），越界 dbpath/dbfile 在 ssh 调用前即被拒。
+
+### 服务器操作层全貌（2026-09-17，用户确认 5 类，fbch34 全部实机验证）
+
+统一原则：封装**能力**而非预设语句；命令/SQL 是测试数据；目标槽位严格校验；
+全程 profile 先行（campus 无关）；完整命令与输出进日志（报告证据）。
+
+- **① LINUX 命令** → `runShellStep`（`steps/server/shell.step.ts`）：以
+  EHR_SSH_USER 身份执行，**sudo 禁止**（提权只走 `.dosu`，违者直接拒绝），
+  ≤2000 字符。验证：ps 取 ruleexecd 进程 ✓；`sudo whoami` 被拒 ✓。
+- **② 可执行脚本** → `SERVER_SCRIPTS` 静态白名单（常用命名脚本）+
+  `runShellStep` 通道（任意 box 脚本）。验证：restart-ruleexecd ×3 ✓。
+- **③ ycql 命令** → `runYcqlStep`（见上）。验证：ccidb 模式 + workdir 库模式 ✓。
+- **④ mysql 命令** → `runMysqlStep`（`steps/server/mysql.step.ts`）：走
+  `$MYSQL_HOME/bin/mysql`（profile 提供，实机 = /eerun/mysql，MariaDB
+  10.5.29）；SQL 同 ycql 级别；连接槽位（user/password/db/host）显式且
+  校验，不推断不信任默认。验证：真实查询 ✓（fbch34 惯例：`-ucci -pcci` 为**连写**，
+  即 user `cci` / password `cci`——空格形态 `-u ucci` 在 fbch34 被拒，2026-09-17
+  TC35118 切片实测；`runMysqlStep` 传 user `cci`。库名 `MPI<站点>` 如 MPIfbch；
+  patient.mrn 即 CCI 内部 MRN；patient.db_dbfile = ccidb 路径 volN/pNNNN）。
+- **⑤ 修改配置文件** → `readConf / copyConf / editConf`
+  （`steps/server/conf.step.ts`）：路径**仅限 `$CCRUN`/`$EERUN`/`$CCSYSDIR`
+  根**（/etc、/home、/tmp、`..` 一律拒绝）；copy 以 cis 执行且自动给已有
+  目标打 `.bak.<时间戳>`；edit 只允许**单个 s/// 替换**（sed 元字符转义），
+  不允许任意 sed 表达式。验证：读 `$CCRUN/site`、grep ruleexecd.rcf ✓；
+  `/etc/passwd` 被拒 ✓。注意：conf 路径在命令里**不加引号**（模式已保证无
+  元字符，且 `$ROOT` 需保留可展开——加引号会变字面量，已踩过）。
+- **教训（PATH 泄漏）**：RESTART_RULEEXECD 脚本自身 `. /etc/.profile` 建立服务器
+  标准环境，注册命令一律用全路径、**不得 touch PATH**——否则测试机 PATH 会
+  泄漏进服务器环境（/etc/.profile 内有多处对 $PATH 的遍历）。
+- **教训（Git Bash MSYS 路径转换）**：Git Bash 调 ssh 时，命令行里「本机存在」的
+  Unix 绝对路径会被转换成 Windows 路径（远端出现 `C:/Program Files/Git/...`
+  被当命令执行）。Git Bash 里跑带路径参数的 ssh 必须加 `MSYS_NO_PATHCONV=1`；
+  框架不受影响（Node execFile 直调 ssh.exe，无 MSYS 转换）。
+- **风险边界**：ruleexecd 停摆窗口约 10–15s，窗口内规则引擎调用失败（无数据
+  损坏风险，守护进程无状态）；有规则依赖的后台任务（CQL 批跑等）运行时
+  不要触发重启（2026-09-17 用户确认的风险点）。
+
+### TC35118 切片（2026-09-17，fbch34）
+
+按 TC 原文执行 SZ35118 [MLIP] Status error in Billing 并固化（TCS.md 已登记）：
+
+- **资产**：goal `claim_to_errored`（flows 15 个，同 claim_to_submitted 链、止于
+  Force Bill；终点态 = claim Errored + BNR "Claim Edits Needed"）+ spec
+  `specs/sz/TC35118-claim-edits-needed.spec.ts`（test.step 与 TC 8 步 1:1，@SZ35118）。
+- **TC 步骤 1（IN35118）**：非破坏性校验——3 份 rule.rcf（BNRRules/inInsNoAssigned、
+  BNRRules/inInsEncounterDateMatchEffectiveDate、None/InInsEffectivePeriod）live 与
+  模板 diff + ruleexecd ps。fbch34 的 live 文件已与模板一致，spec 只验证不重部署。
+- **TC 步骤 2**："Errored Claim" worklist 规则已在 fbch34 配置（sqlite `ruleslists`，
+  definition = ClaimStatusDef equals errored），spec 校验存在性与 criteria。
+- **TC 步骤 3–6**：`runGoal(claim_to_errored)` 走完整链；BNR 验证 = 有界重挂载轮询
+  （6 轮 × 10s）：force bill 后先见 "Ready to Bill / Claim Created - <date>"，服务器
+  updateBNRStatus 翻转后见 "Claim Edits..."（文本在 SZ33286 红色图标 tooltip，
+  `readBnrStatusHeader` hover 读取）；claim 行断言 "Errored"（state 02）。
+- **TC 步骤 7**：mysql（user `cci`、MPIfbch、`patient.db_dbfile` by name）解析患者
+  ccidb → 在**真实 ccidb** 上跑 ycql `var + queryrcmrule() + var`——var 持久（bForce
+  Remote 修复验证）；queryrcmrule 返回该 BNR 的真实 RCM 规则 JSON。
+- **TC 步骤 8（回归）**：配置级——TC34027/TC33731 所需规则（"Stop Billing when
+  Insurance Not Present on BNR" / "Coverage Change"）在 rule.db 齐全；两条 TC 的完整
+  UI 回归（Worklists Active/Complete、Reorder Priorities）未自动化，列为独立跟进切片。
+- **患者创建 PO 修复（run-1/run-2 根因）**：force-create 成功后 250ms 结果轮询读到
+  提交前 DOM、误报 "duplicate" → step 盲重点已 detach 的按钮挂 20s。修复三处：
+  `waitForSubmitOutcome` 轮询把 main-dialog-closed 检查提到首位；
+  `forceCreateDespiteDuplicate` 点击后等 warning dialog 收起（3s catch）再返回；
+  create-patient step 的 "open"/swallowed 分支加重提交前 tabVisible 迟到成功守卫。
+- **执行记录**：run-4 2/2 PASS（2.4 min，headless，patient Testbot_2609171839，
+  ccidb vol3/p1650345443）。start-billing 单次点击回弹重试 1 次（已知行为）。
+- **环境事实**：fbch34 mysql 惯例 `-ucci -pcci` 为连写 = user `cci`（`-u ucci` 被
+  1045 拒，`-u cci` 通过；spec 传 user `cci`）。
 
 ### 阶段 2（create_patient 切片，2026-09-12，fbch34）
 
