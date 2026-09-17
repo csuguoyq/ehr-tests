@@ -7,7 +7,7 @@
 
 1. [PROJECT.md](PROJECT.md) — 架构分层、铁律、结构与规模阈值、最终目标（North Star）、与 ehr/tests 的关系
 2. [MODULES.md](MODULES.md) / [PAGES.md](PAGES.md) / [GOALS.md](GOALS.md) / [TCS.md](TCS.md) — 状态表（模块注册 / 页面状态 / 目标状态 / TC 映射）
-3. 新模块/新 goal 切片前读 [NEW_MODULE.md](NEW_MODULE.md) — 分步 checklist + 文件模板 + 稳定性实践
+3. 新模块/新 goal 切片前读 [NEW_MODULE.md](NEW_MODULE.md) — 分步 checklist + 稳定性实践 + 调试循环 + AI 提示词 + 收尾；第一次做或卡住时读 [HOWTO.md](HOWTO.md) — 完整走查 + 文件模板 + Context/fixtures + 选择器发现 + 测试脚本方法论
 
 ## 铁律速查（全文以 PROJECT.md 为准）
 
