@@ -1,6 +1,6 @@
 // page-objects/oe/order-entry.page.ts — CPOE2 (Order Entry) as reached from a
 // patient chart: BROWSE ORDERS → ADT Orders → Discharge → Add → ORDER DETAILS
-// → Save, including this build's confirmation dialogs.
+// → Done → Submit, including this build's confirmation dialogs.
 //
 // Verified on fbch34 (2026-09-12, provider login gyq001):
 // - The rail's ORDER ENTRY button exists only with a patient chart open.
@@ -14,13 +14,20 @@
 // - ORDER DETAILS: Provider* is a type-to-filter combo (placeholder
 //   "Provider Search (Min. 3 Letters)"). A query with no match leaves the
 //   boundlist empty with no error — use a query that returns providers.
-// - Save raises, in order: "Screening Error" (Yes), "Order Decision Support"
-//   (OK), "Validation Dialog" (password must be re-entered; empty = silent
-//   no-op). The order then shows under EXISTING ORDERS with State "Active".
+// - Confirming ORDER DETAILS is footer "Done" (NOT "Apply/Close"); the NEW
+//   ORDERS panel submits via "Submit" (NOT "Save"). Submit raises, in order:
+//   "Screening Error" (Yes), "Order Decision Support" (OK), "Validation
+//   Dialog" (password must be re-entered; empty = silent no-op). The order
+//   then shows under EXISTING ORDERS with State "Active".
+//
+// This PO exposes ATOMIC ACTIONS + locators only (iron rule 2): business
+// decisions (provider fallback when Add is disabled, submit completion
+// polling) live in steps/oe/*.step.ts.
 
 import type { Page, Locator } from "@playwright/test";
 import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
+import { retryUntil } from "../../src/utils/retry";
 
 export class OrderEntryPage {
   readonly page: Page;
@@ -33,19 +40,20 @@ export class OrderEntryPage {
 
   /**
    * Click a toolbar button by visible label. This build mixes plain
-   * `<button>` (e.g. Browse) with ExtJS buttons (x-btn-inner spans, e.g.
-   * Save / Apply/Close); a sticky x-mask can intercept real clicks, so fall
-   * back to dispatching the mouse sequence on the ExtJS button element.
+   * `<button>` (e.g. Browse) with ExtJS buttons (x-btn-inner spans); a
+   * sticky x-mask can intercept real clicks, so fall back to dispatching
+   * the mouse sequence on the ExtJS button element.
    */
   private async clickBtn(label: string): Promise<void> {
+    const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const roleBased = this.page
-      .getByRole("button", { name: new RegExp(label.replace(/[/]/g, "\\$&"), "i") })
+      .getByRole("button", { name: new RegExp(escapeRe(label), "i") })
       .first();
     if (await roleBased.isVisible().catch(() => false)) {
       await roleBased.click();
       return;
     }
-    const ext = this.page.locator(".x-btn", { hasText: new RegExp(`^${label}$`) }).last();
+    const ext = this.page.locator(".x-btn", { hasText: new RegExp(`^${escapeRe(label)}$`) }).last();
     await expect(ext).toBeVisible({ timeout: 15_000 });
     await ext.click({ timeout: 5_000 }).catch(async () => {
       await ext.evaluate((el) => {
@@ -54,35 +62,6 @@ export class OrderEntryPage {
         );
       });
     });
-  }
-
-  /** Click a category/order list entry (ExtJS grid row OR tree node). */
-  private async clickListEntry(text: string): Promise<boolean> {
-    const row = this.page
-      .locator("tr.x-grid-row, [role=treeitem]")
-      .filter({ hasText: new RegExp(`^\\s*${text}\\s*$`) })
-      .first();
-    if (!(await row.isVisible().catch(() => false))) return false;
-    await row.click();
-    return true;
-  }
-
-  /**
-   * Click the visible leaf element whose exact text is `text` (the picker's
-   * tree nodes wrap their label in spans whose parent also contains the
-   * children — anchored locators on the node itself fail there).
-   */
-  private async clickLeafText(text: string): Promise<boolean> {
-    return this.page.evaluate((t) => {
-      const els = Array.from(document.querySelectorAll("*")).filter(
-        (e) => e.children.length === 0 && (e.textContent || "").trim() === t
-      );
-      const visible = els.filter((e) => (e as HTMLElement).offsetParent !== null);
-      const el = (visible[visible.length - 1] || els[els.length - 1]) as HTMLElement | undefined;
-      if (!el) return false;
-      el.click();
-      return true;
-    }, text);
   }
 
   /** Click a locator, falling back to a page-context mouse sequence when a
@@ -101,6 +80,7 @@ export class OrderEntryPage {
     });
   }
 
+  /** Current "Add (n)" counter value (0 when the footer is absent). */
   private async addCounter(): Promise<number> {
     const body = await this.page.evaluate(() => document.body.innerText);
     const m = body.match(/Add \((\d+)\)/);
@@ -126,70 +106,81 @@ export class OrderEntryPage {
     });
   }
 
-  /**
-   * Browse → ADT Orders → <order> → Add.
-   * The picker has two renderings on this host:
-   *  - a flat category list (ExtJS grid rows; clicking a row ticks the order),
-   *  - the kit's layout: Medications/Non-Meds chips + a category tree + a
-   *    Name grid whose CHECKBOX COLUMN must be clicked (clicking the tree node
-   *    only filters the list — the Add counter stays 0 until the row checkbox
-   *    is ticked).
-   * Non-Meds is mandatory for ADT (with Medications the list stays empty).
-   */
-  async addAdtDischargeOrder(
-    category = "ADT Orders",
-    orderName = "Discharge",
-    providerQuery?: string
-  ): Promise<void> {
+  /** Open the BROWSE ORDERS picker via the Browse toolbar button. */
+  async openBrowseOrders(): Promise<void> {
     await this.clickBtn("Browse");
     await expect(this.page.getByText("BROWSE ORDERS")).toBeVisible({ timeout: 20_000 });
+  }
 
-    // Non-Meds chip when this layout offers one.
+  /**
+   * Click the Non-Meds chip when this layout offers one (ADT needs it —
+   * with Medications the order list stays empty). Returns whether the chip
+   * existed; both renderings (chip / flat list) are valid on this build.
+   */
+  async clickNonMedsChipIfPresent(): Promise<boolean> {
     const nonMeds = this.page.getByRole("button", { name: "Non-Meds", exact: true });
-    if (await nonMeds.isVisible().catch(() => false)) {
-      await nonMeds.click();
-    }
+    if (!(await nonMeds.isVisible().catch(() => false))) return false;
+    await nonMeds.click();
+    return true;
+  }
 
-    // Category: the tree node is exactly "ADT" on this build. Multi-candidate
-    // list-entry clicks left the Pre-Add footer half-rendered (provider field
-    // without options) — use the verified single sequence, fbch34 2026-09-15.
-    await this.page.getByText("ADT", { exact: true }).first().click();
+  /**
+   * Select a category node in BROWSE ORDERS (this build's tree node is
+   * exactly "ADT"). The 1s settle after the click is a verified settle wait
+   * (fbch34 2026-09-15): multi-candidate list-entry clicks left the Pre-Add
+   * footer half-rendered (provider field without options) — the fixed
+   * single sequence is the verified workaround.
+   */
+  async selectCategory(name = "ADT"): Promise<void> {
+    await this.page.getByText(name, { exact: true }).first().click();
     await this.page.waitForTimeout(1_000);
+  }
 
-    // Order row: tick its CHECKBOX directly (verified). The Add counter
-    // becomes 1 and the Pre-Add panel renders the Authorizing Provider field.
-    const orderRow = this.page
+  /**
+   * Tick the CHECKBOX of an order row in the Name grid and VERIFY against
+   * the Add counter (clicking the row text only filters — the counter stays
+   * 0 until the checkbox is ticked). The row is a div grid ([role=cell], no
+   * <td>); the checkbox may need a JS click fallback, hence retryUntil.
+   */
+  async tickOrderRow(orderName: string): Promise<void> {
+    const row = this.page
       .locator("tr.x-grid-row, [role=row]")
       .filter({ hasText: new RegExp(orderName.replace(/\s+/g, "\\s+"), "i") })
       .first();
-    await orderRow.waitFor({ state: "visible", timeout: 15_000 });
-    // Tick and VERIFY against the Add counter. The row is a div grid
-    // ([role=cell], no <td>); the checkbox may need a JS click fallback.
-    const tickCandidates = [
-      orderRow.locator("input[type=checkbox], [role=checkbox]").first(),
-      orderRow.locator("[role=cell], td").first(),
+    await row.waitFor({ state: "visible", timeout: 15_000 });
+    const candidates = [
+      row.locator("input[type=checkbox], [role=checkbox]").first(),
+      row.locator("[role=cell], td").first(),
     ];
-    for (const candidate of tickCandidates) {
-      if ((await this.addCounter()) > 0) break;
-      await candidate
-        .click({ timeout: 4_000, force: true })
-        .catch(async () => candidate.evaluate((el: HTMLElement) => el.click()));
-      await this.page.waitForTimeout(1_500);
-    }
-    if ((await this.addCounter()) === 0) {
-      throw new Error(`Failed to tick ${orderName}: Add counter still 0 (neither checkbox nor cell click took effect)`);
-    }
+    await retryUntil(
+      async () => {
+        for (const candidate of candidates) {
+          if ((await this.addCounter()) > 0) return "ticked";
+          await candidate
+            .click({ timeout: 4_000, force: true })
+            .catch(async () => candidate.evaluate((el: HTMLElement) => el.click()));
+          await this.page.waitForTimeout(1_500);
+        }
+        return "unticked";
+      },
+      async (r) => r === "ticked" || (await this.addCounter()) > 0,
+      `tick ${orderName}: Add counter still 0 (neither checkbox nor cell click took effect)`
+    );
+  }
 
+  /** Whether the "Add (n)" footer button is currently enabled. */
+  async isAddEnabled(): Promise<boolean> {
     const addButton = this.page.getByRole("button", { name: /^Add \([1-9]\d*\)$/ }).last();
-    // The pre-Add panel has a required "Authorizing Provider" field; for some
-    // logins it is NOT pre-filled and Add stays disabled until one is picked.
-    if (!(await addButton.isEnabled().catch(() => false))) {
-      await this.fillAuthorizingProvider(providerQuery);
-    }
+    return addButton.isEnabled().catch(() => false);
+  }
+
+  /** Click the enabled Add button; the BROWSE ORDERS dialog closes on success. */
+  async clickAdd(): Promise<void> {
+    const addButton = this.page.getByRole("button", { name: /^Add \([1-9]\d*\)$/ }).last();
     try {
       await expect(addButton).toBeEnabled({ timeout: 20_000 });
     } catch (e) {
-      const dialog = this.page.locator('[role=dialog]:has-text("BROWSE ORDERS")').last();
+      const dialog = this.browseDialog();
       const text = await dialog.innerText().catch(() => "(no dialog)");
       const inputs = await dialog
         .locator("input")
@@ -205,18 +196,22 @@ export class OrderEntryPage {
     await expect(this.page.getByText("BROWSE ORDERS")).toHaveCount(0, { timeout: 20_000 });
   }
 
+  /** The BROWSE ORDERS dialog (last rendered — earlier ghosts linger in DOM). */
+  browseDialog(): Locator {
+    return this.page.locator('[role=dialog]:has-text("BROWSE ORDERS")').last();
+  }
+
   /**
-   * Pick a provider from the BROWSE ORDERS pre-Add panel — NO fixed name:
-   * open the list and take the FIRST candidate (user convention 2026-09-16).
-   * With no typed query the fixed choice list (cpoeChoices.providers.
-   * authorizing) is coaxed open via ArrowDown. There is deliberately NO
-   * generic typed fallback: this panel filters STARTSWITH over a fixed
-   * choice list, so a broad query like "tes" can never match (verified
-   * fbch34, PROJECT.md phase 5) — a box needing a typed query must pass
-   * providerQuery (goals.yaml discharge.providerQuery).
+   * Make the Authorizing Provider boundlist appear, WITHOUT picking: open
+   * the list and, only if a typed query is configured, type it (the panel
+   * filters STARTSWITH over a fixed choice list, so a broad query like
+   * "tes" can never match — verified fbch34, PROJECT.md phase 5; a box
+   * needing a typed query must pass providerQuery, goals.yaml
+   * discharge.providerQuery). Throws with an input dump when no option
+   * list ever attaches.
    */
-  private async fillAuthorizingProvider(providerQuery?: string): Promise<void> {
-    const dialog = this.page.locator('[role=dialog]:has-text("BROWSE ORDERS")').last();
+  async revealProviderOptions(providerQuery?: string): Promise<void> {
+    const dialog = this.browseDialog();
     // The provider input is the dialog's LAST text input — verified at
     // runtime (fbch34 2026-09-15): skipping "search"-placeholder inputs
     // lands on the wrong field and the option list never appears.
@@ -229,7 +224,7 @@ export class OrderEntryPage {
     const provider = inputs.nth(count - 1);
     await provider.click();
 
-    const options = this.page.locator('li[role=option], .x-boundlist-item');
+    const options = this.providerOptions();
     let attached = await options
       .first()
       .waitFor({ state: "attached", timeout: 3_000 })
@@ -250,10 +245,6 @@ export class OrderEntryPage {
         .then(() => true)
         .catch(() => false);
     }
-    // The option popup may render ATTACHED but not playwright-"visible"
-    // (zero-size/offscreen popper) — match the verified probe behavior:
-    // wait for ATTACHED options (allTextContents sees them regardless of
-    // visibility), then click by text with a force fallback.
     if (!attached) {
       const dump = await dialog
         .locator("input")
@@ -268,11 +259,25 @@ export class OrderEntryPage {
         `Provider candidates never appeared (ArrowDown did not force the fixed list; if this box needs a typed query, configure discharge.providerQuery in goals.yaml); inputs=[${dump}]; field DOM: ${html}`
       );
     }
+  }
 
-    const option = options.first();
+  /** Currently open option list (MUI li[role=option] OR ExtJS boundlist). */
+  providerOptions(): Locator {
+    return this.page.locator("li[role=option], .x-boundlist-item");
+  }
+
+  /**
+   * Click the FIRST candidate in the open option list and return its label.
+   * Choosing "first candidate" is the caller's convention (user convention
+   * 2026-09-16); this atom only clicks and verifies the input took the value.
+   * The popup may render ATTACHED but not playwright-"visible" (zero-size/
+   * offscreen popper) — hence the force fallback.
+   */
+  async pickFirstOption(): Promise<string> {
+    const option = this.providerOptions().first();
     const label = ((await option.textContent()) || "").trim();
     await option.click({ force: true }).catch(async () => option.evaluate((el: HTMLElement) => el.click()));
-    await expect(provider).toHaveValue(label.length ? label : /.+/, { timeout: 10_000 });
+    return label;
   }
 
   /** Click the new-order card title to open ORDER DETAILS. */
@@ -323,9 +328,6 @@ export class OrderEntryPage {
    *   today (mask input). Authorizing Provider is usually PREFILLED (e.g.
    *   "34494a dstest") — the Pre-Add empty-provider block from 2026-09-12
    *   does not apply here; no provider action is needed.
-   * - Confirming is footer "Done" (NOT "Apply/Close"), then the NEW ORDERS
-   *   panel submits via "Submit" (NOT "Save"). Save raises the usual dialog
-   *   chain; Validation Dialog asks "Are you sure you wish to Save order(s)?".
    */
   async setDetailsDisposition(disposition: string): Promise<void> {
     const input = this.page
@@ -343,15 +345,15 @@ export class OrderEntryPage {
     await expect(input).not.toHaveValue("");
   }
 
-  /** Confirm ORDER DETAILS via its footer Done button. */
+  /** Confirm ORDER DETAILS via its footer Done button (NOT "Apply/Close"). */
   async confirmDetailsDone(): Promise<void> {
     const done = this.page.getByRole("button", { name: "Done", exact: true }).last();
     await expect(done).toBeVisible({ timeout: 15_000 });
     await done.click();
   }
 
-  /** Submit the NEW ORDERS panel, then run the post-submit dialog chain. */
-  async submitOrder(): Promise<void> {
+  /** Click the NEW ORDERS panel Submit button (NOT "Save"). */
+  async clickSubmit(): Promise<void> {
     const submit = this.page.getByText("Submit", { exact: true }).last();
     await expect(submit).toBeVisible({ timeout: 15_000 });
     await submit.click();
@@ -364,34 +366,6 @@ export class OrderEntryPage {
       .first()
       .waitFor({ state: "visible", timeout: 20_000 })
       .catch(() => {});
-    await this.handleSaveDialogs();
-    // The "Save Order — printed to COMPROOM" receipt is modal when it
-    // appears, but it does not always appear (and can take 15-35s) — poll
-    // for EITHER the receipt (dismiss it) or the order going Active, and
-    // exit as soon as one shows (fbch34 2026-09-16: a blind 60s wait here
-    // stalled every run for a minute).
-    const deadline = Date.now() + 45_000;
-    let receiptShown = false;
-    while (Date.now() < deadline) {
-      if (await this.hasActiveOrder("Discharge")) return;
-      const receiptText = this.page.getByText(/printed to COMPROOM/i).first();
-      if (await receiptText.isVisible().catch(() => false)) {
-        receiptShown = true;
-        const okBtn = this.page
-          .locator(".MuiDialog-root:visible, [role=dialog]:visible")
-          .filter({ hasText: /printed to COMPROOM/i })
-          .getByRole("button", { name: "OK" })
-          .first();
-        await okBtn.click().catch(() => {});
-        await receiptText.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
-        break;
-      }
-      await this.page.waitForTimeout(500);
-    }
-    if (receiptShown) {
-      // one more sweep in case follow-up windows surfaced after the receipt
-      await this.handleSaveDialogs();
-    }
   }
 
   /** Dismiss an ExtJS window by its button text, with fallbacks (≤3 tries). */
@@ -408,34 +382,14 @@ export class OrderEntryPage {
     }
   }
 
-  /** Type a provider query and pick the first matching option. */
-  async setProvider(providerQuery: string): Promise<void> {
-    const input = this.page.locator('input[placeholder="Provider Search (Min. 3 Letters)"]').last();
-    await expect(input).toBeVisible();
-    await input.click();
-    await input.pressSequentially(providerQuery, { delay: 80 });
-    const option = this.page.locator(".x-boundlist-item").first();
-    await expect(option).toBeVisible({ timeout: 15_000 });
-    await option.click();
-    await expect(input).not.toHaveValue("");
-  }
-
-  async applyOrderDetails(): Promise<void> {
-    await this.clickBtn("Apply/Close");
-    await expect(this.page.getByText("ORDER DETAILS")).toHaveCount(0, { timeout: 15_000 });
-  }
-
-  async save(): Promise<void> {
-    await this.clickBtn("Save");
-    await this.handleSaveDialogs();
-  }
-
-  /** The dialogs this build raises on Save (see file header). */
-  private async handleSaveDialogs(): Promise<void> {
-    // The dialog sequence varies run to run (Screening Error → Decision
-    // Support → Validation Dialog, in any order, sometimes repeated), and a
-    // portal "Screen Lock" window can sit on top and swallow the OK click
-    // (fbch34 2026-09-15). Sweep rounds until no known window remains.
+  /**
+   * Dismiss the dialogs this build raises on Submit (see file header).
+   * The dialog sequence varies run to run (Screening Error → Decision
+   * Support → Validation Dialog, in any order, sometimes repeated), and a
+   * portal "Screen Lock" window can sit on top and swallow the OK click
+   * (fbch34 2026-09-15). Sweep rounds until no known window remains.
+   */
+  async dismissSaveDialogs(): Promise<void> {
     for (let round = 0; round < 6; round++) {
       // 0) Screen Lock overlay — unlock with the session password.
       const lock = this.page.locator(".x-window:has-text('Screen Lock'):visible").last();
@@ -478,22 +432,7 @@ export class OrderEntryPage {
       // 3.5) Save Order receipt — a MUI dialog (skills/oe: "MUI 'Save Order'
       //      dialog ... follows → OK"), NOT an ExtJS window. Find it by the
       //      COMPROOM text anywhere and confirm via its role=button OK.
-      const receiptText = this.page.getByText(/printed to COMPROOM/i).first();
-      if (await receiptText.isVisible().catch(() => false)) {
-        const okBtn = this.page
-          .locator(".MuiDialog-root:visible, [role=dialog]:visible")
-          .filter({ hasText: /printed to COMPROOM/i })
-          .getByRole("button", { name: "OK" })
-          .first();
-        if (await okBtn.isVisible().catch(() => false)) {
-          await okBtn.click();
-        } else {
-          // fallback: any visible OK button near the text's dialog layer
-          await this.page.getByRole("button", { name: "OK" }).last().click();
-        }
-        await receiptText.waitFor({ state: "hidden", timeout: 8_000 }).catch(() => {});
-        continue;
-      }
+      if (await this.dismissReceiptIfShown()) continue;
       // Nothing matched this round — a follow-up dialog may still be
       // surfacing; brief grace, then give up.
       await this.page.waitForTimeout(2_500);
@@ -503,13 +442,39 @@ export class OrderEntryPage {
           .filter({
             hasText: /Validation Dialog|Screening Error|Order Decision Support|Screen Lock/,
           })
-          .count()) ||
-        (await receiptText.isVisible().catch(() => false) ? 1 : 0);
+          .count()) || (await this.receiptVisible() ? 1 : 0);
       if (!pending) break;
     }
   }
 
-  /** The order is Active under EXISTING ORDERS (ADT group). */
+  /** The "Save Order — printed to COMPROOM" receipt text, when rendered. */
+  private async receiptVisible(): Promise<boolean> {
+    return this.page.getByText(/printed to COMPROOM/i).first().isVisible().catch(() => false);
+  }
+
+  /**
+   * Dismiss the Save Order receipt if it is showing. Returns whether it was
+   * shown (the submit completion poll in submit-order.step.ts uses this as
+   * the observable "server accepted the order" signal).
+   */
+  async dismissReceiptIfShown(): Promise<boolean> {
+    const receiptText = this.page.getByText(/printed to COMPROOM/i).first();
+    if (!(await receiptText.isVisible().catch(() => false))) return false;
+    const okBtn = this.page
+      .locator(".MuiDialog-root:visible, [role=dialog]:visible")
+      .filter({ hasText: /printed to COMPROOM/i })
+      .getByRole("button", { name: "OK" })
+      .first();
+    if (await okBtn.isVisible().catch(() => false)) {
+      await okBtn.click();
+    } else {
+      // fallback: any visible OK button near the text's dialog layer
+      await this.page.getByRole("button", { name: "OK" }).last().click();
+    }
+    await receiptText.waitFor({ state: "hidden", timeout: 8_000 }).catch(() => {});
+    return true;
+  }
+
   /** True when an Active row for the order already exists in EXISTING ORDERS. */
   async hasActiveOrder(orderName: string): Promise<boolean> {
     const txt = await this.page.locator("body").innerText().catch(() => "");

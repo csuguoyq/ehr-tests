@@ -277,6 +277,31 @@ claim_to_submitted 修复后端到端 PASS。对工作区 09-16 未提交修复�
   Submit，TC35253 回归 **PASS**。create_encounter 现默认加 Self 担保人+保险
   （`insurance:false` = 自费模式），claim_to_submitted 链同步获得 Assign 步骤。
 
+### order-entry PO 重构切片（2026-09-17，fbch34）
+
+实施 framework-review-2026-09-17 下一轮第 1 项（H1）+ L5 + §2.1 retryUntil 首实现：
+
+- **order-entry.page.ts 瘦身**：PO 只留原子动作 + 定位器——
+  `addAdtDischargeOrder` 拆为 `openBrowseOrders / clickNonMedsChipIfPresent /
+  selectCategory / tickOrderRow / isAddEnabled / clickAdd`；
+  `fillAuthorizingProvider` 拆为 `revealProviderOptions`（UI 知识留 PO）+
+  `pickFirstOption`（「取第一候选」约定上移 step）；`submitOrder` 的完成轮询
+  （receipt OR Active，业务状态判断）移入新 step。
+- **死代码删除**：`clickLeafText`、`setProvider`、`applyOrderDetails`、`save`，
+  外加审查未列的 `clickListEntry`（全仓无调用）。
+- **新增 `steps/oe/submit-order.step.ts`**：clickSubmit → dismissSaveDialogs →
+  45s 轮询（receipt 关单 / Active 即返回），最终 Active 断言仍由调用方
+  `expectOrderActive` 承担。`handleSaveDialogs` 改名 `dismissSaveDialogs` 留
+  PO（纯 ExtJS 弹窗 UI 知识，无业务分支）。
+- **`src/utils/retry.ts` retryUntil 首实现**（§2.1 建议）：动作 → 可观察状态
+  证明 → ≤N 次；`tickOrderRow` 勾选重试改用它（存量 6 处手写模式按报告不动）。
+- **L5 修复**：`clickBtn` 的 regex 转义改为完整元字符转义（原只转义 `/`）；
+  `selectCategory` 的 1s settle 与 `revealProviderOptions` 的 1.5s settle 补
+  背书注释；文件头 "→ Save" 改为 "→ Done → Submit"（与 docblock 矛盾消除）；
+  残留双 docblock 合并。
+- **验证**：`build:drv` + `check-goals` 绿；fbch34 无头回归
+  discharge.spec（端到端 1.8m PASS，走全新链）+ login.spec 3 项 PASS。
+
 ### 阶段 2（create_patient 切片，2026-09-12，fbch34）
 
 - 搜索表单填单个主条件（MRN）即可解锁 Create New Patient 按钮；`sf-mrn-tf` 等 testid 在 MUI 包装 div 上，用内层 `input` fill。

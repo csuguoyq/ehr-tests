@@ -4,6 +4,7 @@
 - **方法**：三路并行审查（架构文档与状态表 / 代码分层与质量 / 运行配置与测试规范）+ 关键发现逐条人工复核（GOALS.md、flows/index.ts、specs/discharge.spec.ts、playwright.config.ts、scripts/check-goals.mjs、goals.yaml、tsconfig.build.json 均已实读确认）
 - **修订（2026-09-17 复核）**：三路逐条核查 61 条论断（代码层 20 / 文档层 17 / 基建层 24），修正 7 处错误/行号偏移、补充 15 处遗漏发现（D13-D17、I10-I13、L5 等）——本版为修正后文本
 - **增量（2026-09-17 晚）**：全仓非 md 文件已英文化（M5⑤ 随之修复）；goals.yaml 重写后仍 356 行，全部行号引用复核仍有效（仅 login.spec 一处偏移已更新）；新增 I14（CI 失败根因 = 项目无 runner）
+- **实施进度（2026-09-17 晚②）**：下一轮第 1 项 **H1 已落地**（order-entry PO 原子化 + 死代码删除 + 业务决策上移 `discharge-order.step` / 新增 `submit-order.step`，含 L5 修复与额外死代码 `clickListEntry`；`handleSaveDialogs` 裁定为纯 ExtJS 弹窗 UI 知识、留 PO 改名 `dismissSaveDialogs`）；**§2.1 retryUntil 首实现**（`src/utils/retry.ts`，`tickOrderRow` 首用，存量 6 处未动）；fbch34 无头 discharge+login 回归 PASS。详见 PROJECT.md「order-entry PO 重构切片」。
 - **结论先行**：核心设计扎实，"运行时零 AI"是构造性保证（全代码零 AI 依赖、无后门路径）。主要债务集中在四处：**文档-代码漂移无工具拦截、策略层缺失导致同一模式 3-6 处重复手写、order-entry PO 膨胀、一致性/超时/入门基建缺失。**
 
 ---
