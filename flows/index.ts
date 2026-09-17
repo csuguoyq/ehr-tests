@@ -1,8 +1,7 @@
 // flows/index.ts — Flow registry. Only implemented goals appear here
 // (rule: unimplemented modules are only registered here, no empty files upfront).
-// `discharge` (DischargeFlow) is NOT registered yet — the slice is in
-// progress (see PROJECT.md phase 5); its steps stay in the tree for the
-// follow-up round but the executor must keep rejecting the goal.
+// Consistency between this registry and goals.yaml `implemented: true` is
+// enforced by `npm run check:goals` (CI gate).
 
 import type { FlowDefinition } from "../src/types/flow";
 import { LoginFlow } from "./login.flow";

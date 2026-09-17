@@ -8,12 +8,12 @@
 |---|---|---|---|---|---|---|---|
 | Auth | 登录、登出 | P0 | 2 | 1 | 部分实现 | | 2026-09-11 |
 | Patient Control | 门户级患者上下文入口（Cps census；打开图表后 rail 才出现患者级应用） | P0 | 1 | 1 | 已覆盖 | | 2026-09-15 |
-| Registration | 患者、Guarantor、Encounter、出院（`ehr/src/Registration`） | P0 | 待调研 | 3 | 部分实现 | | 2026-09-12 |
-| Charge Services | BNR、Charges、Quick Charge（`ehr/src/Charge`） | P0 | 待调研 | 2 | 部分实现 | | 2026-09-12 |
-| Coding | Diagnosis、ADT、DRG（Charge Services 的 Coding tab） | P0 | 待调研 | 2 | 部分实现 | | 2026-09-12 |
-| CPOE2 | Order Reconcile、Discharge（`ehr/src/OE`） | P0 | 待调研 | 1 | 切片中 | | 2026-09-12 |
-| Billing | Start Billing、Bill Now、Force Bill、Guarantor Balance、Adjustments | P0 | 待调研 | 2 | 部分实现 | | 2026-09-16 |
-| Insurance Claims | Claim 表格（Submit/Void/Resubmit/Replacement kebab、Totals 行）、Adjustment 弹窗（`ehr/src/Charge/Claim`） | P0 | 待调研 | 2 | 部分实现 | | 2026-09-16 |
+| Registration | 患者、Guarantor、Encounter、出院（`ehr/src/Registration`） | P0 | 待调研 | 5 | 已覆盖 | | 2026-09-16 |
+| Charge Services | BNR、Charges、Quick Charge（`ehr/src/Charge`） | P0 | 待调研 | 4 | 已覆盖 | | 2026-09-16 |
+| Coding | Diagnosis、ADT、DRG（Charge Services 的 Coding tab） | P0 | 待调研 | 3 | 已覆盖 | | 2026-09-15 |
+| CPOE2 | Order Reconcile、Order Entry/ADT（`ehr/src/OE`） | P0 | 待调研 | 1 | 部分实现 | | 2026-09-15 |
+| Billing | Start Billing、Bill Now、Force Bill、Guarantor Balance、Adjustments | P0 | 待调研 | 0（Billing 动作实现于 Charge Services 节的「Billing (BNR)」页卡，同一 `billing.page.ts`） | 部分实现 | | 2026-09-16 |
+| Insurance Claims | Claim 表格（Submit/Void/Resubmit/Replacement kebab、Totals 行）、Adjustment 弹窗（`ehr/src/Charge/Claim`） | P0 | 待调研 | 1 | 已覆盖 | | 2026-09-16 |
 
 ## 发现渠道
 

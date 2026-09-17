@@ -1,4 +1,4 @@
-// specs/SZ35266-admit-date.spec.ts — TC35266 (SZ35266, bug fixed & checked in
+// specs/sz/TC35266-admit-date.spec.ts — TC35266 (SZ35266, bug fixed & checked in
 // 2026-08-10): a patient admitted from a PLANNED encounter must show the admit
 // date in Patient Control's census ADMIT DATE column. This spec is the first
 // "execute an existing TC" pilot: test.step names map 1:1 to the TC steps, so

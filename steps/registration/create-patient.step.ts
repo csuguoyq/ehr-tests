@@ -6,8 +6,8 @@ import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { PatientCreatePage } from "../../page-objects/registration/patient-create.page";
 import { generateDob, generateLastName, generateSsn } from "./patient-data";
+import { str } from "../../src/utils/params";
 
-const str = (v: unknown, fallback: string) => (typeof v === "string" && v ? v : fallback);
 
 export async function createPatientStep(ctx: EhrContext, params: ResolvedParams): Promise<void> {
   const patient = {

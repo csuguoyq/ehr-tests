@@ -22,7 +22,7 @@ npx playwright test --headed      # 有窗口调试
 ```ts
 await runFromInput(page, "登录");                        // 自然语言匹配
 await runGoal(page, "login", { username: "demo" });      // 按目标键 + 参数
-await runGoal(page, "create_encounter", { preset: "inpatient_acute_admit" }); // preset（Flow 实现后）
+await runGoal(page, "create_encounter", { preset: "inpatient_acute_admit" }); // preset（inpatient_acute_admit / inpatient_acute_existing_patient / outpatient 均已实现）
 ```
 
 运行时纯 Playwright，无 AI 调用；失败自动留 trace + 截图（`test-results/`，
@@ -30,7 +30,9 @@ await runGoal(page, "create_encounter", { preset: "inpatient_acute_admit" }); //
 
 ## 扩展新切片（每轮一个）
 
-1. 读四个状态文件（PROJECT / MODULES / PAGES / GOALS）。
+1. 读四个状态文件（PROJECT / MODULES / PAGES / GOALS）；TC 场景另查 TCS.md。
 2. goals.yaml 登记/补充目标 schema → Page Object → Step → Flow → Spec。
 3. Flow 注册进 `flows/index.ts`，goals.yaml 标 `implemented: true`。
-4. 更新 MODULES.md / PAGES.md / GOALS.md / PROJECT.md。
+4. 更新 MODULES.md / PAGES.md / GOALS.md（+TCS.md，TC 场景）/ PROJECT.md；`npm run check:goals` 过一致性门。
+
+新模块切片的分步 checklist 与文件模板见 [NEW_MODULE.md](NEW_MODULE.md)。

@@ -5,8 +5,8 @@
 import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { CodingPage } from "../../page-objects/charge/coding.page";
+import { str } from "../../src/utils/params";
 
-const str = (v: unknown, fallback: string) => (typeof v === "string" && v ? v : fallback);
 
 export async function codingCompleteStep(ctx: EhrContext, params: ResolvedParams): Promise<void> {
   const admitDiagnosis = str(params.admitDiagnosis, "I69.941");
