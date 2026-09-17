@@ -9,7 +9,7 @@ import { runGoal } from "../src/executor/runner";
 import { generateLastName } from "../steps/registration/patient-data";
 
 test(
-  "goal-driven coding_complete: 诊断 I69.941+S94.10XD + 出院去向 → Coding Complete",
+  "goal-driven coding_complete: diagnoses I69.941+S94.10XD + discharge disposition -> Coding Complete",
   { tag: "@slow" },
   async ({ authedPage }) => {
     const lastName = generateLastName();

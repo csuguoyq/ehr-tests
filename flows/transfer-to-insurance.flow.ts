@@ -23,7 +23,7 @@ import { addAdjustmentStep } from "../steps/charge/add-adjustment.step";
 export const TransferToInsuranceFlow: FlowDefinition = {
   goal: "transfer_to_insurance",
   description:
-    "SZ35253：自费 BNR（已有 charges）→ 出院 → Start/Force Bill（无保险→金额落 guarantor 卡、无 claim）→ 登记保险 → Add Adjustment 0001 全额转账",
+    "SZ35253: self-pay BNR (charges already posted) -> discharge -> Start/Force Bill (no insurance -> amount lands on the guarantor card, no claim) -> register insurance -> Add Adjustment 0001 full transfer",
   async execute(ctx, params) {
     // 1. land the balance on the guarantor card (needs discharge first on
     //    this build — Start Billing requires a discharged encounter)

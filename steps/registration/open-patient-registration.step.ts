@@ -16,7 +16,7 @@ export async function openPatientRegistrationStep(
   const lastName = (typeof params.lastName === "string" && params.lastName) || patient?.lastName;
   const firstName =
     (typeof params.firstName === "string" && params.firstName) || "Auto";
-  if (!ssn || !lastName) throw new Error("open_patient_registration 需要 ssn 与 lastName");
+  if (!ssn || !lastName) throw new Error("open_patient_registration requires ssn and lastName");
 
   const app = new RegistrationAppPage(ctx.page, ctx.env);
   ctx.log.step("open-patient-registration", `ssn=${ssn}`);

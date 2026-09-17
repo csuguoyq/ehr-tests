@@ -10,7 +10,7 @@ export async function lookupAccountStep(ctx: EhrContext, params: ResolvedParams)
   const mrn = typeof params.mrn === "string" ? params.mrn : "";
   const patientName = typeof params.patientName === "string" ? params.patientName : "";
   if (!mrn && !patientName) {
-    throw new Error("该目标需要 mrn 或 patientName");
+    throw new Error("This goal requires mrn or patientName");
   }
   const query = mrn || patientName;
   ctx.log.step("lookup-account", `query=${query}`);
@@ -22,7 +22,7 @@ export async function lookupAccountStep(ctx: EhrContext, params: ResolvedParams)
   // is among the cells so a wrong-hit row cannot pass.
   const row = await lookup.readFirstResultRow();
   if (mrn && !row.includes(mrn)) {
-    throw new Error(`Account Lookup 按 MRN ${mrn} 无结果（首行: ${JSON.stringify(row)}）`);
+    throw new Error(`Account Lookup found no result for MRN ${mrn} (first row: ${JSON.stringify(row)})`);
   }
   ctx.scratch.account = { mrn, patientName, row };
   ctx.log.info(`account row: ${JSON.stringify(row)}`);

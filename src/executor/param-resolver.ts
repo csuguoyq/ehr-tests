@@ -28,7 +28,7 @@ function coerceValue(
   const t = schema.type;
   const fail = () => ({
     value,
-    error: `参数 ${name} 应为 ${t}，实际为 ${typeof value}: ${JSON.stringify(value)}`,
+    error: `param ${name} must be ${t}, got ${typeof value}: ${JSON.stringify(value)}`,
   });
   if (t === "string") {
     if (typeof value === "string") return { value, error: null };
@@ -54,7 +54,7 @@ function coerceValue(
 function enumCheck(name: string, value: unknown, schema: ParamSchema): string | null {
   if (value === null || value === undefined || !schema.enum) return null;
   if (!schema.enum.includes(value)) {
-    return `参数 ${name}=${JSON.stringify(value)} 不在可选值 [${schema.enum.join(", ")}] 中`;
+    return `param ${name}=${JSON.stringify(value)} is not in enum [${schema.enum.join(", ")}]`;
   }
   return null;
 }
@@ -66,7 +66,7 @@ export function resolveParams(goal: GoalDefinition, input: ResolveInput = {}): R
   const presetValues = input.preset ? goal.presets?.[input.preset] : undefined;
   if (input.preset && !presetValues) {
     const known = Object.keys(goal.presets || {}).join(", ") || "(none)";
-    throw new Error(`目标 ${goal.name} 没有 preset “${input.preset}”，可用：${known}`);
+    throw new Error(`goal ${goal.name} has no preset "${input.preset}". Available: ${known}`);
   }
 
   const overrides = input.params || {};
@@ -88,7 +88,7 @@ export function resolveParams(goal: GoalDefinition, input: ResolveInput = {}): R
 
   // 2) unknown override keys are typos — reject loudly
   for (const key of Object.keys(overrides)) {
-    if (!(key in goal.params)) errors.push(`未知参数 ${key}（目标 ${goal.name} 的 schema 中不存在）`);
+    if (!(key in goal.params)) errors.push(`unknown param ${key} (not in goal ${goal.name}'s schema)`);
   }
 
   // 3) required / requiredIf — evaluated on merged values
@@ -96,7 +96,7 @@ export function resolveParams(goal: GoalDefinition, input: ResolveInput = {}): R
     const missing = resolved[name] === null || resolved[name] === undefined;
     if (!missing) continue;
     if (schema.required) {
-      errors.push(`参数 ${name} 必填（目标 ${goal.name}）`);
+      errors.push(`param ${name} is required (goal ${goal.name})`);
       continue;
     }
     const cond = schema.requiredIf;
@@ -104,12 +104,12 @@ export function resolveParams(goal: GoalDefinition, input: ResolveInput = {}): R
       const trigger = resolved[cond.param];
       const active =
         cond.values !== undefined ? cond.values.includes(trigger) : cond.value === trigger;
-      if (active) errors.push(`参数 ${name} 在 ${cond.param}=${JSON.stringify(trigger)} 时必填`);
+      if (active) errors.push(`param ${name} is required when ${cond.param}=${JSON.stringify(trigger)}`);
     }
   }
 
   if (errors.length > 0) {
-    throw new Error(`目标 ${goal.name} 参数校验失败（入口一次性报错，不进流程）：\n  - ${errors.join("\n  - ")}`);
+    throw new Error(`param validation failed for goal ${goal.name} (fails at entry, never mid-flow):\n  - ${errors.join("\n  - ")}`);
   }
   return resolved;
 }

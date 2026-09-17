@@ -9,7 +9,7 @@ import { test, expect } from "../fixtures/auth.fixture";
 import { runGoal } from "../src/executor/runner";
 
 test(
-  "goal-driven create_encounter: 新患者 → encounter → admit → BNR（preset inpatient_acute_admit）",
+  "goal-driven create_encounter: new patient -> encounter -> admit -> BNR (preset inpatient_acute_admit)",
   { tag: "@slow" },
   async ({ authedPage }) => {
     const params = await runGoal(authedPage, "create_encounter", {

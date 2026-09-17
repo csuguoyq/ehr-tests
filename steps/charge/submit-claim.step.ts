@@ -25,8 +25,8 @@ export async function submitClaimStep(ctx: EhrContext, params: ResolvedParams): 
   const existing = await claims.waitForFirstRow(billing, 45_000);
   if (existing.length === 0) {
     throw new Error(
-      "无 claim 可提交：force bill 后 Insurance Claims 为空。本 box 的 claim 生成依赖服务器侧管线" +
-        "（submitClaims/updateBNRStatus，见 TC32438/TC33301 与 TCS.md SZ35474 备注）。"
+      "No claim to submit: Insurance Claims is empty after force bill. Claim creation on this box depends on the server-side pipeline" +
+        " (submitClaims/updateBNRStatus, see TC32438/TC33301 and TCS.md SZ35474 notes)."
     );
   }
   await claims.submitClaim(reason);

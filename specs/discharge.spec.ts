@@ -3,7 +3,7 @@
 // The Registration half is built (encounterDischarge gated on a CPOE2 order)
 // and the CPOE2 order picker is solved down to the pre-Add "Authorizing
 // Provider" field, whose lookup returns NO candidates for the freshly created
-// test patients in this environment (see PROJECT.md 阶段 5). The goal is not
+// test patients in this environment (see PROJECT.md phase 5). The goal is not
 // registered in flows/index.ts yet, so this spec is skipped instead of red.
 //
 //   npx playwright test specs/discharge.spec.ts   # skipped until unblocked
@@ -13,7 +13,7 @@ import { runGoal } from "../src/executor/runner";
 import { generateLastName, generateSsn } from "../steps/registration/patient-data";
 
 test.skip(
-  "goal-driven discharge: CPOE2 出院医嘱 → Registration Discharge Patient",
+  "goal-driven discharge: CPOE2 discharge order -> Registration Discharge Patient",
   { tag: "@slow" },
   async ({ authedPage }) => {
     const lastName = generateLastName();

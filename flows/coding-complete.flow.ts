@@ -8,7 +8,7 @@ import { codingCompleteStep } from "../steps/charge/coding-complete.step";
 
 export const CodingCompleteFlow: FlowDefinition = {
   goal: "coding_complete",
-  description: "Charge Services → BNR → Coding：录入 admit/principal 诊断 + ADT 出院去向 → Complete",
+  description: "Charge Services -> BNR -> Coding: enter admit/principal diagnoses + ADT discharge disposition -> Complete",
   async execute(ctx, params) {
     await openBnrDetailStep(ctx, params);
     await codingCompleteStep(ctx, params);

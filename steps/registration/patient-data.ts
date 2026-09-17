@@ -2,7 +2,7 @@
 // creation (naming convention from skills/ehr-workflow/registration).
 //
 // Last Name = Testbot_<YYMMDDHHmm> (unique per minute).
-// SSN = <YY各位和><MMDD><HHmm> grouped 3-2-4 (user convention 2026-09-16):
+// SSN = <digit sum of YY><MMDD><HHmm> grouped 3-2-4 (user convention 2026-09-16):
 // first digit = two-digit year digits summed (2026 → "26" → 2+6 = 8),
 // then month/day MMDD, then clock time HHmm (17:44 → 1744).
 

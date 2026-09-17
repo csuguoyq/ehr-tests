@@ -20,7 +20,7 @@ import { generateLastName } from "../../steps/registration/patient-data";
 import { ClaimsPage } from "../../page-objects/charge/claims.page";
 
 test(
-  "SZ35474 TC01+TC02: void→rebill 链后 Totals 只计非 Closed claim（host 见 .env）",
+  "SZ35474 TC01+TC02: after the void->rebill chain Totals counts only non-Closed claims (host in .env)",
   { tag: "@slow" },
   async ({ authedPage }) => {
     test.setTimeout(1_500_000); // full revenue cycle + void + server-side re-billable wait

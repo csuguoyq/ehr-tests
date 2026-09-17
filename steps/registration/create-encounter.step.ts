@@ -26,7 +26,7 @@ export async function createEncounterStep(ctx: EhrContext, params: ResolvedParam
   // Only "api" is still unimplemented.
   if (params.patientMode === "api") {
     throw new Error(
-      `patientMode "api" 尚未实现：本切片支持 new（新患者）与 existing（已有患者，按 SSN 打开）。`
+      `patientMode "api" is not implemented yet: this slice supports new (new patient) and existing (open an existing patient by SSN).`
     );
   }
 

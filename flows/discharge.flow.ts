@@ -13,7 +13,7 @@ import { dischargeEncounterStep } from "../steps/registration/discharge-encounte
 
 export const DischargeFlow: FlowDefinition = {
   goal: "discharge",
-  description: "CPOE2 出院医嘱（Active）→ Registration Encounters 执行 Discharge Patient",
+  description: "CPOE2 discharge order (Active) -> Registration Encounters: Discharge Patient",
   async execute(ctx, params) {
     await openPatientChartStep(ctx, params);
     await dischargeOrderStep(ctx, params);

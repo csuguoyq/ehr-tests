@@ -23,7 +23,7 @@ import { BillingPage } from "../../page-objects/charge/billing.page";
 import { ClaimsPage } from "../../page-objects/charge/claims.page";
 
 test(
-  "SZ35253 T1+T2: 0001 转账后 Guarantor Balance 清零且生成保险 claim（host 见 .env）",
+  "SZ35253 T1+T2: after the 0001 transfer the Guarantor Balance is zero and an insurance claim exists (host in .env)",
   { tag: "@slow" },
   async ({ authedPage }) => {
     test.setTimeout(900_000); // discharge → bill → insurance → adjustment
@@ -49,9 +49,11 @@ test(
     expect(transferred, "prerequisite: non-zero guarantor balance transferred").toBeGreaterThan(0);
 
     // T1 (TC expected): the guarantor card is zeroed by the transfer.
-    // 2026-09-16 fbch34 复核：按手工录制路径（Person 担保人 + 保险 Assign 到
-    // BNR + 0001/Balance Type=Guarantor）转账生效——guarantor 归零、claim
-    // 生成 $16,640。此前"缺陷复现"实为操作缺失（保险未 Assign），见 TCS.md。
+    // 2026-09-16 fbch34 recheck: following the manual recording path (Person
+    // guarantor + insurance Assigned to the BNR + 0001/Balance Type=Guarantor)
+    // the transfer takes effect — guarantor zeroed, a claim created for
+    // $16,640. The earlier "defect reproduction" was a missing step
+    // (insurance not Assigned), see TCS.md.
     const billing = new BillingPage(authedPage, loadEhrEnv());
     await expect
       .poll(async () => billing.readGuarantorBalance(), { timeout: 30_000 })

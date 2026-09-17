@@ -1,7 +1,7 @@
 // flows/index.ts — Flow registry. Only implemented goals appear here
-// (rule: 未实现的模块只在注册表登记，不提前建空文件).
+// (rule: unimplemented modules are only registered here, no empty files upfront).
 // `discharge` (DischargeFlow) is NOT registered yet — the slice is in
-// progress (see PROJECT.md 阶段 5); its steps stay in the tree for the
+// progress (see PROJECT.md phase 5); its steps stay in the tree for the
 // follow-up round but the executor must keep rejecting the goal.
 
 import type { FlowDefinition } from "../src/types/flow";

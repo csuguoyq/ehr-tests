@@ -8,7 +8,7 @@ import { lookupAccountStep } from "../steps/charge/lookup-account.step";
 
 export const LookupAccountFlow: FlowDefinition = {
   goal: "lookup_account",
-  description: "Charge Services → Account Lookup：按 MRN/姓名查询账户（只读，返回患者行信息）",
+  description: "Charge Services -> Account Lookup: find an account by MRN/name (read-only, returns the patient row info)",
   async execute(ctx, params) {
     await lookupAccountStep(ctx, params);
   },

@@ -7,7 +7,7 @@ import { startBillingStep } from "../steps/charge/start-billing.step";
 
 export const StartBillingFlow: FlowDefinition = {
   goal: "start_billing",
-  description: "Charge Services → BNR Billing tab：Start Billing → Bill Now（需已出院+编码完成）",
+  description: "Charge Services -> BNR Billing tab: Start Billing -> Bill Now (requires discharged + coding complete)",
   async execute(ctx, params) {
     await openBnrDetailStep(ctx, params);
     await startBillingStep(ctx, params);

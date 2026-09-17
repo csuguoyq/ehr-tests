@@ -7,7 +7,7 @@ import { forceBillStep } from "../steps/charge/force-bill.step";
 
 export const ForceBillFlow: FlowDefinition = {
   goal: "force_bill",
-  description: "Charge Services → BNR Billing tab：Force Bill（BNR Edits 状态，需填原因）",
+  description: "Charge Services -> BNR Billing tab: Force Bill (BNR Edits status, reason required)",
   async execute(ctx, params) {
     await openBnrDetailStep(ctx, params);
     await forceBillStep(ctx, params);
