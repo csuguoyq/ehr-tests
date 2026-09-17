@@ -18,6 +18,9 @@ export interface EhrEnvConfig {
   webframeDir: string;
   username: string;
   password: string;
+  /** IANA timezone the box renders dates in (fbch34: US Pacific). Set via
+   *  EHR_TZ; date assertions must use this, never a PO-local hardcode. */
+  timezone: string;
 }
 
 export function loadEhrEnv(overrides?: Partial<EhrEnvConfig>): EhrEnvConfig {
@@ -29,6 +32,7 @@ export function loadEhrEnv(overrides?: Partial<EhrEnvConfig>): EhrEnvConfig {
     baseUrl: `https://${host}.clinicomp.com/${webframeDir}/index.php`,
     username: overrides?.username || process.env.EHR_USER || "demo",
     password: overrides?.password || process.env.EHR_PASS || "123",
+    timezone: overrides?.timezone || process.env.EHR_TZ || "America/Los_Angeles",
   };
 }
 
@@ -36,6 +40,47 @@ export interface EhrData {
   plans: Array<{ planId: string; description: string }>;
   cpts: Array<{ code: string; description: string; defaultQty?: number }>;
   diagnoses: Array<{ code: string; role: "admit" | "principal" | "secondary"; description: string }>;
+}
+
+/** Patient identity recorded by create-patient and consumed by later steps.
+ *  All fields optional: readers fall back to params when a field is absent. */
+export interface ScratchPatient {
+  firstName?: string;
+  lastName?: string;
+  ssn?: string;
+  dob?: string;
+  address1?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  sex?: string;
+  citizenship?: string;
+  /** Search-dialog MRN seed ("90001"), NOT an assigned chart MRN. */
+  searchMrn?: string;
+  /** Assigned chart MRN, when a step captures it (currently none do). */
+  mrn?: string;
+}
+
+/** Typed run-state shared between the steps AND goals of one test's
+ *  orchestration. Each key is written by exactly one step kind and read by
+ *  later steps/specs — keep this interface the single shape authority. */
+export interface ScratchState {
+  patient?: ScratchPatient;
+  /** Hospital BNR id captured by wait-bnr. */
+  bnrId?: string;
+  /** Unit picked by admit-encounter (null when autocomplete returned empty). */
+  admitUnit?: string | null;
+  charges?: { cpts: string[]; qty: number };
+  coding?: {
+    admitDiagnosis: string;
+    principalDiagnosis: string;
+    drgCode: string;
+    dischargeDisposition: string;
+  };
+  billing?: { started?: boolean; forced?: boolean; reason?: string };
+  claim?: { submitted?: boolean; voided?: boolean };
+  adjustment?: { code: string; amount: string; notes: string };
+  account?: { mrn?: string; patientName?: string; row: string[] };
 }
 
 export interface EhrContext {
@@ -51,5 +96,5 @@ export interface EhrContext {
    *  is how quick_charge/coding_complete/discharge reuse the patient that
    *  create_encounter generated. A new test gets a new page, so scratch is
    *  fresh per test. */
-  scratch: Record<string, unknown>;
+  scratch: ScratchState;
 }

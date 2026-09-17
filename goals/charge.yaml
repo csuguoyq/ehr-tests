@@ -1,0 +1,101 @@
+# goals/charge.yaml — Charge Services domain: charges, coding, billing, account lookup, BNR detail.
+goals:
+  quick_charge:
+    aliases: ["quick charge", "submit charges", "post charges"]
+    flow: QuickChargeFlow
+    implemented: true
+    params:
+      mrn:
+        type: string
+        default: null   # search and open the account directly by MRN (fastest/most precise); patientName can be omitted when mrn is given
+      patientName:
+        type: string
+        default: null   # patient last name; may be omitted when orchestrated with create_encounter (uses scratch)
+      cpts:
+        type: string
+        default: "96372,96374"   # comma-separated CPT/HCPCS codes
+      qty:
+        type: number
+        default: 10
+
+  coding_complete:
+    aliases: ["coding complete", "complete coding"]
+    flow: CodingCompleteFlow
+    implemented: true
+    params:
+      mrn:
+        type: string
+        default: null   # search and open the account directly by MRN (same as quick_charge); patientName can be omitted when mrn is given
+      patientName:
+        type: string
+        default: null   # patient last name; may be omitted when orchestrated with create_encounter (uses scratch)
+      admitDiagnosis:
+        type: string
+        default: "I69.941"
+      principalDiagnosis:
+        type: string
+        default: "S94.10XD"
+      drg:
+        type: string
+        default: "182"   # full code auto-selected (no candidate list, same as diagnosis codes); e.g. "182"
+      severityIllness:
+        type: string
+        default: "1 - Minor"
+      riskMortality:
+        type: string
+        default: "1 - Minor"
+      dischargeDisposition:
+        type: string
+        default: "Home or self-care"
+
+  start_billing:
+    aliases: ["start billing", "bill"]
+    flow: StartBillingFlow
+    implemented: true
+    params:
+      mrn:
+        type: string
+        default: null   # open the account directly by MRN (same as quick_charge)
+      patientName:
+        type: string
+        default: null   # patient last name; one of mrn/patientName
+
+  force_bill:
+    aliases: ["force bill"]
+    flow: ForceBillFlow
+    implemented: true
+    params:
+      mrn:
+        type: string
+        default: null
+      patientName:
+        type: string
+        default: null
+      forceReason:
+        type: string
+        default: "Testbot automation: force bill past BNR edits"
+
+  lookup_account:
+    aliases: ["lookup patient", "find patient", "lookup account"]
+    flow: LookupAccountFlow
+    implemented: true
+    params:
+      mrn:
+        type: string
+        default: null   # look up by MRN (fastest/most precise); one of mrn/patientName
+      patientName:
+        type: string
+        default: null   # patient last name
+
+  open_bnr_detail:
+    aliases: ["open bnr", "open patient account"]
+    flow: OpenBnrDetailFlow
+    implemented: true
+    params:
+      mrn:
+        type: string
+        default: null
+      patientName:
+        type: string
+        default: null   # defaults to scratch.patient
+

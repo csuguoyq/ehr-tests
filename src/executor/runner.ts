@@ -18,7 +18,15 @@ import { matchGoal } from "./goal-matcher";
 import { resolveParams } from "./param-resolver";
 import { FLOWS } from "../../flows";
 
-const GOALS_YAML = path.resolve(__dirname, "../../goals.yaml");
+// Goals live in goals/<domain>.yaml (split once the single file outgrew the
+// 300-line threshold — see PROJECT.md "Structure & size thresholds"); the
+// single-file layout remains supported as a fallback. Resolved lazily: the
+// compiled .build-drv gets its goals copy synced just before load (tsc does
+// not copy yaml — see drive-ml.js / package.json build:drv).
+function defaultGoalsPath(): string {
+  const dir = path.resolve(__dirname, "../../goals");
+  return fs.existsSync(dir) ? dir : path.resolve(__dirname, "../../goals.yaml");
+}
 const DATA_DIR = path.resolve(__dirname, "../../data");
 
 /**
@@ -26,7 +34,7 @@ const DATA_DIR = path.resolve(__dirname, "../../data");
  * one file per domain once the single file outgrows itself — see PROJECT.md
  * "Structure & size thresholds"). Duplicate goal keys across files are rejected loudly.
  */
-export function loadGoals(yamlPath = GOALS_YAML): Record<string, GoalDefinition> {
+export function loadGoals(yamlPath = defaultGoalsPath()): Record<string, GoalDefinition> {
   const files: string[] = [];
   if (fs.existsSync(yamlPath) && fs.statSync(yamlPath).isDirectory()) {
     for (const f of fs.readdirSync(yamlPath).sort()) {

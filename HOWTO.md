@@ -11,7 +11,7 @@
 Registration 的「新建患者」goal 是最标准的垂直切片：1 goal、2 step、2 PO、11 个可选参数、2 条 spec。
 下面按落库顺序用真实代码说明每个文件为什么这么写。
 
-### 1.1 goals.yaml — 目标注册（声明式）
+### 1.1 goals/<域>.yaml — 目标注册（声明式）
 
 真实片段（params 略）：
 
@@ -134,7 +134,7 @@ export async function createPatientStep(ctx: EhrContext, params: ResolvedParams)
 1. **默认值解析在 step**（不在 PO、不在 goals.yaml）：`str(params.x, fallback)`——params 为 null 时用这里生成的 fallback（`generateLastName()` → `Testbot_YYMMDDHHmm`，测试数据约定，见稳定性第 6 条）。
 2. **重试模式 = 动作 → 可观察证明 → ≤N 次**：每次重试先问 `waitForSubmitOutcome`「上一次发生了什么」，再分支处理；不允许盲重试。
 3. **成功证明收尾**：`expectPatientCreated`——step 结束前没有证明就不算完成。
-4. **`ctx.scratch.patient = patient`**：把生成的患者放进共享状态，同一编排里后续 goal（quick_charge / coding_complete / discharge）直接复用——这就是 goals.yaml 里 `patientName?（缺省复用同次编排生成的患者）` 类描述背后的机制。**参数组合是数据不是分支**（铁律 7；ctx 机制见 §2）。
+4. **`ctx.scratch.patient = patient`**：把生成的患者放进共享状态，同一编排里后续 goal（quick_charge / coding_complete / discharge）直接复用——这就是 goals yaml 里 `patientName?（缺省复用同次编排生成的患者）` 类描述背后的机制。**参数组合是数据不是分支**（铁律 7；ctx 机制见 §2）。
 
 ### 1.4 Flow — 只编排（`flows/create-patient.flow.ts`）
 
@@ -156,7 +156,7 @@ export const CreatePatientFlow: FlowDefinition = {
 ```
 
 零定位器（铁律 4）：Flow 只负责 step 的「顺序」，不负责「怎么点」。
-`goal` 字段必须与 goals.yaml 键名一致，常量名必须与 goals.yaml 的 `flow` 一致。
+`goal` 字段必须与 goals yaml 键名一致，常量名必须与 goals yaml 的 `flow` 一致。
 
 ### 1.5 注册表 — `flows/index.ts`（最易漏）
 
@@ -170,7 +170,7 @@ export const FLOWS: Record<string, FlowDefinition> = {
 };
 ```
 
-加 import + `FLOWS` 一行。漏了这行，运行时报「goal 在 goals.yaml 注册但 Flow 未实现」，
+加 import + `FLOWS` 一行。漏了这行，运行时报「goal 在 goals yaml 注册但 Flow 未实现」，
 `npm run check:goals` 也会直接拦下。
 
 ### 1.6 Spec — 测试入口（`specs/create-patient.spec.ts`）
@@ -197,7 +197,7 @@ test("goal-driven create_patient: registration opens -> patient created -> patie
 test("goal schema: create_patient is implemented and default params resolve", async () => {
   const goals = loadGoals();
   const goal = goals["create_patient"];
-  if (!goal) throw new Error("goals.yaml is missing the create_patient goal");
+  if (!goal) throw new Error("goals yaml is missing the create_patient goal");
   if (goal.implemented === false) throw new Error("create_patient should be marked implemented: true");
   // ... 另断言 aliases 齐全、不带越界参数（如 patientMode 属于 create_encounter）
 });
@@ -206,8 +206,8 @@ test("goal schema: create_patient is implemented and default params resolve", as
 两种模式：
 
 1. **实机 E2E**：传入固定 lastName/ssn（以便断言「显式参数生效」）+ 断言最终状态（患者 tab 出现）。
-2. **不开浏览器的 schema 单测**：校验 goals.yaml 注册本身（存在、implemented、aliases 齐全、参数合理）——
-   快、不依赖环境，E2E 之前就能抓到 goals.yaml 写错。**每个新 goal 都带一条。**
+2. **不开浏览器的 schema 单测**：校验 goals 注册本身（存在、implemented、aliases 齐全、参数合理）——
+   快、不依赖环境，E2E 之前就能抓到 goals yaml 写错。**每个新 goal 都带一条。**
 
 TC 型 spec 放 `specs/sz/TC<id>-slug.spec.ts`，无头实机验证通过后登记 TCS.md。
 

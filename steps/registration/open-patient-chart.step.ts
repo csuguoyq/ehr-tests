@@ -12,7 +12,7 @@ export async function openPatientChartStep(
 ): Promise<void> {
   const name =
     (typeof params.lastName === "string" && params.lastName) ||
-    (ctx.scratch.patient as { lastName?: string } | undefined)?.lastName;
+    ctx.scratch.patient?.lastName;
   if (!name) throw new Error("open_patient_chart requires lastName (patient last name)");
 
   const census = new PatientControlPage(ctx.page);

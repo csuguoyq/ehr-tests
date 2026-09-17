@@ -34,7 +34,7 @@ test(
 
     // Step-level record: submitClaimStep must have flipped the scratch flag.
     const ctx = createEhrContext(authedPage);
-    const claim = ctx.scratch.claim as { submitted?: boolean } | undefined;
+    const claim = ctx.scratch.claim;
     expect(claim?.submitted, "submitClaimStep must record claim submitted").toBe(true);
 
     // Spec-level proof on top of the step's internal check (Submit button

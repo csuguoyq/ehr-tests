@@ -19,7 +19,10 @@ export const test = ehrTest.extend<AuthFixtures>({
     try {
       await tokenLogin(ehr.page, ehr.env);
     } catch (e) {
-      ehr.log.warn(`token login failed (${(e as Error).message}) — falling back to UI login`);
+      const err = e as Error;
+      ehr.log.warn(
+        `token login failed: ${err.message}\n${err.stack ?? "(no stack)"} — falling back to UI login`
+      );
       await runGoal(ehr.page, "login");
     }
     await use(ehr.page);

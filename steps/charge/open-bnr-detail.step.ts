@@ -13,7 +13,7 @@ import { AccountLookupPage } from "../../page-objects/charge/account-lookup.page
 export function resolvePatientName(ctx: EhrContext, params: ResolvedParams): string {
   const name =
     (typeof params.patientName === "string" && params.patientName) ||
-    (ctx.scratch.patient as { lastName?: string } | undefined)?.lastName;
+    ctx.scratch.patient?.lastName;
   if (!name) {
     throw new Error(
       "This goal requires mrn or patientName (last name), or must run in the same orchestration as create_encounter to reuse its generated patient"

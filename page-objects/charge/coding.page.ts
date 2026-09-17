@@ -120,10 +120,11 @@ export class CodingPage {
     await expect(dateInput).toHaveValue(codeDate);
   }
 
-  /** Today's date (MM/DD/YYYY) in the target box's timezone (fbch34: US Pacific). */
+  /** Today's date (MM/DD/YYYY) in the target box's timezone (env-provided,
+   *  fbch34: US Pacific). */
   private boxToday(): string {
     const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/Los_Angeles",
+      timeZone: this.env.timezone,
       month: "2-digit",
       day: "2-digit",
       year: "numeric",

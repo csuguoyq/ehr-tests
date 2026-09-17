@@ -43,7 +43,7 @@ test(
       });
     });
 
-    const admitUnit = ctx.scratch.admitUnit as string | null;
+    const admitUnit = ctx.scratch.admitUnit;
     expect(admitUnit, "admit step must record which unit was picked (scratch.admitUnit)").toBeTruthy();
 
     const patientControl = new PatientControlPage(authedPage);

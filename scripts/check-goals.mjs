@@ -18,9 +18,12 @@ const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const { loadGoals } = require(path.join(root, ".build-drv/src/executor/runner.js"));
 const { matchGoal } = require(path.join(root, ".build-drv/src/executor/goal-matcher.js"));
 
-// Point at the ROOT goals.yaml — the .build-drv copy is a runtime-synced
-// artifact (tsc does not copy yaml) and does not exist in a clean CI checkout.
-const goalsPath = path.join(root, "goals.yaml");
+// Point at the ROOT goals source (goals/ dir split, or goals.yaml fallback) —
+// the .build-drv copies are runtime-synced artifacts (tsc does not copy yaml)
+// and do not exist in a clean CI checkout.
+const goalsPath = statSync(path.join(root, "goals")).isDirectory()
+  ? path.join(root, "goals")
+  : path.join(root, "goals.yaml");
 const goals = loadGoals(goalsPath);
 console.log("goals loaded:", Object.keys(goals).length);
 for (const name of Object.keys(goals)) {

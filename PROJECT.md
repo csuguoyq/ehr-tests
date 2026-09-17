@@ -52,7 +52,7 @@
 - `specs/`: Playwright 测试入口
 - `fixtures/`: Playwright fixture（ehr 基础上下文 / authedPage 登录会话）
 - `api/`: HTTP fallback client（UI 按钮禁用等环境缺陷的兜底）
-- `goals.yaml`: 目标 + 参数 schema + preset + 别名
+- `goals/<域>.yaml`: 目标 + 参数 schema + preset + 别名（auth / registration / charge / claims 四域；单文件 goals.yaml 布局仍被加载器兼容，仅作回退）
 - `src/executor/`: goal-matcher / param-resolver / runner
 - `drive-ml.js`: 单目标自然语言 CLI 驱动（需先 `npm run build:drv` 产出 `.build-drv/`）
 - `MODULES.md` / `PAGES.md` / `GOALS.md` / `TCS.md`: 状态表
@@ -100,7 +100,7 @@ docs/status/<域>.md           # PAGES/GOALS 超阈值后外置；MODULES.md 永
 ### 触发阈值（按此调整，平时不动）
 
 - `flows/`、`specs/` 目标 >15 个 → 加域层目录。**当前 flows 已注册 14 个目标，逼近阈值——下一个目标加入即触发域层评估（2026-09-17 审查记录）。**
-- `goals.yaml` >300 行 → 拆 `goals/<域>.yaml`（加载器已兼容单文件与目录两种形态，重复目标键会报错）。**当前 356 行已越线，待专门架构轮拆分（2026-09-17 审查记录，平时不顺手动）。**
+- `goals.yaml` >300 行 → 拆 `goals/<域>.yaml`（加载器兼容单文件与目录两种形态，重复目标键会报错）。**已于 2026-09-17 架构轮拆分完成：auth / registration / charge / claims 四文件，根 goals.yaml 删除（消除双份拷贝漂移窗口）。**
 - `PAGES.md` >300 行或单模块 >10 张页面卡 → 外置 `docs/status/`，MODULES.md 留链接。
 - 目录调整只在专门的架构轮做，不顺带切片（铁律 9）。
 - `drive-ml.js` 是文档化的 CLI 入口（`npm run drive:ml`），固定在根目录，不挪 `scripts/`。
@@ -325,6 +325,41 @@ claim_to_submitted 修复后端到端 PASS。对工作区 09-16 未提交修复�
   残留双 docblock 合并。
 - **验证**：`build:drv` + `check-goals` 绿；fbch34 无头回归
   discharge.spec（端到端 1.8m PASS，走全新链）+ login.spec 3 项 PASS。
+
+### 类型收口 + Flow 组合 + goals 拆分切片（2026-09-17，fbch34）
+
+实施 framework-review-2026-09-17 剩余项：§2.3、§2.2、M3、L2、L3、L4、架构轮 D11：
+
+- **§2.3 `ScratchState` 定型**：`src/types/ehr-context.ts` 新增
+  `ScratchState` / `ScratchPatient` 接口（patient / bnrId / admitUnit /
+  charges / coding / billing / claim / adjustment / account），`EhrContext.scratch`
+  从 `Record<string, unknown>` 改为定型；4 处 step 内联结构断言 + 3 处 spec
+  cast 全部删除，形状统一由接口承担。`mrn` 字段注明当前无 step 写入。
+- **§2.2 Flow 组合**：新增 `flows/encounter-stages.ts`——共享前缀
+  open_registration → create_patient → add_guarantor_self → add_insurance →
+  open_existing_patient → create_encounter → admit_encounter → wait_bnr，
+  每阶段带 `when(params)` 适用谓词；`create_encounter.flow` 变为纯
+  `runStages`，`claim_to_submitted.flow` 组合 `...encounterStages` + 收入
+  尾段，前缀不再手工复制。
+- **M3 消除**：create-encounter.flow 的 3 处参数 if 与 claim flow 的
+  insurance no-op 分支全部改为阶段 `when` 谓词（参数组合是数据）；existing
+  模式的打开阶段命名 `open_existing_patient`，避免与 resume 词汇表中的
+  `open_patient_registration`（startAt 命中后跳过的那个）冲突。
+- **L2**：`EhrEnvConfig.timezone`（`EHR_TZ`，默认 America/Los_Angeles），
+  coding.page `boxToday` 改读 env，PO 不再硬编码时区；.env.example 补注释。
+- **L3**：auth fixture token 登录失败的 warn 带完整 stack（UI 兜底保留）。
+- **L4**：`createSessionApiClient(page)` 兑现——直接返回
+  `page.context().request`（共享已登录 cookie jar），TODO 空壳删除。
+- **架构轮 D11**：goals.yaml（372 行）拆 `goals/{auth,registration,charge,claims}.yaml`
+  （14 个 goal 全部落位）；根 goals.yaml 删除；runner 默认路径惰性解析
+  （goals/ 目录优先、单文件回退）；新增 `scripts/sync-goals.mjs` 挂在
+  `build:drv` 后（drive-ml 运行前同步保留）；check-goals 读根 goals 源。
+- **验证**：tsc / build:drv / check-goals 全绿；fbch34 无头回归 discharge +
+  login（4/4 PASS）、TC35266（重构后 CreateEncounterFlow 路径 PASS）、
+  claim_to_submitted 全链连续两次 2/2 PASS（3.2m / 3.4m）。首轮全链曾失败
+  一次且明细未保留（当时只留了 tail）；复跑两轮全绿，结合链路对服务器侧
+  claim 管线时序的已知敏感（TCS.md 环境备注），裁定与重构无关，但明细
+  缺失记为教训：回归日志要完整落盘。
 
 ### 阶段 2（create_patient 切片，2026-09-12，fbch34）
 

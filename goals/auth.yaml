@@ -1,0 +1,16 @@
+# goals/auth.yaml — authentication goals.
+goals:
+  login:
+    aliases: ["login", "log in", "sign in", "login to EHR"]
+    flow: LoginFlow
+    implemented: true
+    params:
+      username:
+        type: string
+        default: null   # null = resolve env EHR_USER at runtime (see steps/auth/login.step.ts)
+        description: portal username; falls back to the environment default account
+      password:
+        type: string
+        default: null   # null = resolve env EHR_PASS at runtime
+        description: portal password; falls back to the environment default password
+

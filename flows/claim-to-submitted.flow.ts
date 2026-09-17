@@ -1,17 +1,13 @@
 // flows/claim-to-submitted.flow.ts — goal "claim_to_submitted": the FULL
 // patient revenue cycle in one orchestration (patient → encounter/admit/BNR →
 // quick charges → coding → discharge order → encounter discharge → billing →
-// force bill if needed → claim submit). All identity hand-off flows through
-// ctx.scratch; params only customize (plan, cpts, diagnoses, reasons...).
+// force bill if needed → claim submit). The registration→BNR prefix is the
+// shared encounterStages unit (§2.2); only the revenue-cycle tail lives here.
+// All identity hand-off flows through ctx.scratch; params only customize.
 
 import type { FlowDefinition } from "../src/types/flow";
-import { openRegistrationStep } from "../steps/registration/registration-open.step";
-import { createPatientStep } from "../steps/registration/create-patient.step";
-import { addGuarantorSelfStep } from "../steps/registration/add-guarantor-self.step";
-import { addInsuranceStep } from "../steps/registration/add-insurance.step";
-import { createEncounterStep } from "../steps/registration/create-encounter.step";
-import { admitEncounterStep } from "../steps/registration/admit-encounter.step";
-import { waitForBnrStep } from "../steps/registration/wait-bnr.step";
+import type { Stage } from "./encounter-stages";
+import { encounterStages } from "./encounter-stages";
 import { openBnrDetailStep } from "../steps/charge/open-bnr-detail.step";
 import { quickChargeStep } from "../steps/charge/quick-charge.step";
 import { codingCompleteStep } from "../steps/charge/coding-complete.step";
@@ -22,6 +18,21 @@ import { dischargeEncounterStep } from "../steps/registration/discharge-encounte
 import { startBillingStep } from "../steps/charge/start-billing.step";
 import { forceBillStep } from "../steps/charge/force-bill.step";
 import { submitClaimStep } from "../steps/charge/submit-claim.step";
+
+const claimStages: Stage[] = [
+  ...encounterStages,
+  { name: "open_bnr_detail", run: openBnrDetailStep },
+  { name: "quick_charge", run: quickChargeStep },
+  { name: "coding_complete", run: codingCompleteStep },
+  { name: "open_patient_chart", run: openPatientChartStep },
+  { name: "discharge_order", run: dischargeOrderStep },
+  { name: "open_patient_registration", run: openPatientRegistrationStep },
+  { name: "discharge_encounter", run: dischargeEncounterStep },
+  { name: "open_bnr_detail_2", run: openBnrDetailStep },
+  { name: "start_billing", run: startBillingStep },
+  { name: "force_bill", run: forceBillStep },
+  { name: "submit_claim", run: submitClaimStep },
+];
 
 export const ClaimToSubmittedFlow: FlowDefinition = {
   goal: "claim_to_submitted",
@@ -46,29 +57,6 @@ export const ClaimToSubmittedFlow: FlowDefinition = {
       await openPatientRegistrationStep(ctx, params);
     }
 
-    // Stage list: name -> step. Stage names are the startAt vocabulary.
-    const stages: Array<[string, (c: typeof ctx, p: typeof params) => Promise<void>]> = [
-      ["open_registration", openRegistrationStep],
-      ["create_patient", createPatientStep],
-      ["add_guarantor_self", addGuarantorSelfStep],
-      // insurance:false = self-pay mode (SZ35253) — the stage is a no-op there.
-      ["add_insurance", (c, p) => (p.insurance !== false ? addInsuranceStep(c, p) : Promise.resolve())],
-      ["create_encounter", createEncounterStep],
-      ["admit_encounter", admitEncounterStep],
-      ["wait_bnr", waitForBnrStep],
-      ["open_bnr_detail", openBnrDetailStep],
-      ["quick_charge", quickChargeStep],
-      ["coding_complete", codingCompleteStep],
-      ["open_patient_chart", openPatientChartStep],
-      ["discharge_order", dischargeOrderStep],
-      ["open_patient_registration", openPatientRegistrationStep],
-      ["discharge_encounter", dischargeEncounterStep],
-      ["open_bnr_detail_2", openBnrDetailStep],
-      ["start_billing", startBillingStep],
-      ["force_bill", forceBillStep],
-      ["submit_claim", submitClaimStep],
-    ];
-
     let skipping = Boolean(startAt);
     // skipStages (comma list, resume only): drop stages that must NOT re-run
     // for this patient, e.g. quick_charge after a mid-chain failure already
@@ -78,21 +66,24 @@ export const ClaimToSubmittedFlow: FlowDefinition = {
         ? params.skipStages.split(",").map((s) => s.trim())
         : []
     );
-    for (const [name, step] of stages) {
+    for (const stage of claimStages) {
       if (skipping) {
-        if (name !== startAt) continue;
-        if (name === "open_patient_registration") continue; // already done by the resume entry
+        if (stage.name !== startAt) continue;
+        if (stage.name === "open_patient_registration") continue; // already done by the resume entry
         skipping = false;
       }
-      if (skip.has(name)) {
-        ctx.log.warn(`stage ${name} skipped (skipStages)`);
+      if (skip.has(stage.name)) {
+        ctx.log.warn(`stage ${stage.name} skipped (skipStages)`);
         continue;
       }
-      await step(ctx, params);
+      // Param variation is data: stages whose `when` rejects these params
+      // (e.g. add_insurance with insurance:false) are no-ops here.
+      if (stage.when && !stage.when(params)) continue;
+      await stage.run(ctx, params);
     }
     if (skipping) {
       throw new Error(
-        `resume startAt="${startAt}" not found. Valid stages: ${stages.map(([n]) => n).join(", ")}`
+        `resume startAt="${startAt}" not found. Valid stages: ${claimStages.map((s) => s.name).join(", ")}`
       );
     }
   },

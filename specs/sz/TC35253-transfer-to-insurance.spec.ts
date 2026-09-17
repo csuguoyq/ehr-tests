@@ -42,9 +42,7 @@ test(
     // claim), register insurance, transfer via adjustment 0001. The step
     // reads the pre-transfer guarantor balance and records it in scratch.
     await runGoal(authedPage, "transfer_to_insurance", {});
-    const adjustment = createEhrContext(authedPage).scratch.adjustment as
-      | { amount?: string }
-      | undefined;
+    const adjustment = createEhrContext(authedPage).scratch.adjustment;
     const transferred = Number(adjustment?.amount ?? "0");
     expect(transferred, "prerequisite: non-zero guarantor balance transferred").toBeGreaterThan(0);
 

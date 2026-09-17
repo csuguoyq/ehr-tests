@@ -1,0 +1,166 @@
+# goals/registration.yaml — Registration domain: patient, encounter, insurance/transfer, discharge.
+goals:
+  create_patient:
+    aliases: ["create patient", "new patient", "add patient"]
+    flow: CreatePatientFlow
+    implemented: true
+    params:
+      # all optional; null = step generates defaults (name Testbot_<timestamp>, SSN date+time, DOB random year)
+      firstName: { type: string, default: null, description: "defaults to Auto" }
+      lastName: { type: string, default: null, description: "defaults to Testbot_<YYMMDDHHmm>" }
+      ssn: { type: string, default: null, description: "defaults to <digit sum of YY><MMDD><HHmm> grouped 3-2-4; e.g. 2026-09-16 17:44 -> 809-16-1744" }
+      dob: { type: string, default: null, description: "MM/DD/YYYY; defaults to current month/day + random year 1980-2005" }
+      address1: { type: string, default: null, description: "defaults to 123 Main St" }
+      city: { type: string, default: null, description: "defaults to San Diego" }
+      state: { type: string, default: null, description: "defaults to CA" }
+      zip: { type: string, default: null, description: "defaults to 92101" }
+      sex: { type: string, default: null, description: "defaults to random Female/Male" }
+      citizenship: { type: string, default: null, description: "defaults to US Citizen" }
+      searchMrn: { type: string, default: null, description: "search MRN that unlocks Create New Patient, defaults to 90001" }
+
+  create_encounter:
+    aliases: ["create encounter", "new encounter"]
+    flow: CreateEncounterFlow
+    implemented: true
+    params:
+      patientMode:
+        type: string
+        enum: ["new", "existing", "api"]
+        default: "new"
+      planId:
+        type: string
+        default: "68888"
+        requiredIf:
+          param: patientMode
+          values: ["new", "api"]
+      insurance:
+        type: boolean
+        default: true   # false = self-pay mode (no insurance registered, e.g. SZ35253 preconditions)
+      encounterType:
+        type: string
+        enum: ["Inpatient Acute", "Outpatient", "Emergency", "Observation"]
+        default: "Inpatient Acute"
+      status:
+        type: string
+        enum: ["Arrived", "Planned"]
+        default: "Arrived"   # user default 2026-09-17; ADT types (Inpatient Acute) fall back to Planned (Arrived+ADT = direct admission needing a CPOE2 admit order)
+      admit:
+        type: boolean
+        default: null
+      waitForBnr:
+        type: boolean
+        default: null
+      # encounter/admit data (verified on fbch34 during the phase-2 slice)
+      facility:
+        type: string
+        default: null   # defaults to San Diego Medical Center - Cove Community Hospital
+      expectedDatetime:
+        type: string
+        default: null   # MM/DD/YYYY hh:mm; defaults to browser clock +1 hour
+      guarantorType:
+        type: string
+        default: null   # new patients only accept Entity
+      guarantor:
+        type: string
+        default: null   # new patients only accept Mini Reg Guarantor
+      admitType:
+        type: string
+        default: null   # defaults to Elective
+      pointOfOrigin:
+        type: string
+        default: null   # defaults to Home or Self Care
+      meansOfArrival:
+        type: string
+        default: null   # defaults to Self
+      levelOfCare:
+        type: string
+        default: null   # defaults to Med-Surg
+      bnrTimeoutMs:
+        type: number
+        default: 180000
+      # create-patient passthrough (used to pin the name in new mode); in existing mode
+      # ssn+lastName open an existing patient (Registration's primary search key = SSN)
+      lastName:
+        type: string
+        default: null
+        requiredIf:
+          param: patientMode
+          value: "existing"
+      firstName:
+        type: string
+        default: null   # defaults to "Auto" in existing mode
+      ssn:
+        type: string
+        default: null
+        requiredIf:
+          param: patientMode
+          value: "existing"
+      dob:
+        type: string
+        default: null
+    presets:
+      inpatient_acute_admit:
+        patientMode: new
+        planId: "68888"
+        encounterType: Inpatient Acute
+        admit: true
+        waitForBnr: true
+      inpatient_acute_existing_patient:
+        patientMode: existing
+        encounterType: Inpatient Acute
+        admit: true
+        waitForBnr: false
+      outpatient:
+        patientMode: new
+        planId: "68888"
+        encounterType: Outpatient
+        admit: false
+        waitForBnr: false
+
+  transfer_to_insurance:
+    aliases: ["transfer to insurance"]
+    flow: TransferToInsuranceFlow
+    implemented: true
+    params:
+      ssn:
+        type: string
+        default: null   # Registration's primary search key; defaults to scratch.patient (step errors if absent)
+      lastName:
+        type: string
+        default: null   # defaults to scratch.patient
+      planId:
+        type: string
+        default: "68888"
+      transactionCode:
+        type: string
+        default: "0001"   # Transfer Patient to Insurance
+      balanceType:
+        type: string
+        default: "Guarantor"   # SZ35253 manual recording: explicitly pick Guarantor for Balance Type
+      amount:
+        type: string
+        default: null   # null = full amount (current Guarantor Balance)
+      notes:
+        type: string
+        default: "Testbot automation: transfer to insurance"
+
+  discharge:
+    aliases: ["discharge", "discharge patient"]
+    flow: DischargeFlow
+    implemented: true   # verified on fbch34 2026-09-16 (inside the SZ35253 chain + discharge goal)
+    params:
+      lastName:
+        type: string
+        default: null   # patient last name (required)
+      ssn:
+        type: string
+        default: null   # patient SSN (Registration's primary search key, required)
+      firstName:
+        type: string
+        default: null
+      dischargeDisposition:
+        type: string
+        default: "Home or self-care"
+      providerQuery:
+        type: string
+        default: null   # provider not pinned: open the list and take the first candidate by default; use only as a fallback when the list needs a search string

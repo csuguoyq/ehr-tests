@@ -11,7 +11,7 @@ export async function openPatientRegistrationStep(
   ctx: EhrContext,
   params: ResolvedParams
 ): Promise<void> {
-  const patient = ctx.scratch.patient as { ssn?: string; lastName?: string; mrn?: string } | undefined;
+  const patient = ctx.scratch.patient;
   // MRN is the preferred search key (unique, user convention 2026-09-17);
   // SSN is the fallback (also unique by generation).
   const mrn = (typeof params.mrn === "string" && params.mrn) || patient?.mrn;

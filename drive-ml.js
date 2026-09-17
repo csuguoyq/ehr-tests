@@ -101,7 +101,10 @@ console.log = (...a) => {
     console.error("[drv] .build-drv not built — run: npm run build:drv");
     process.exit(1);
   }
-  fs.copyFileSync(path.join(__dirname, "goals.yaml"), path.join(bdrv, "goals.yaml"));
+  // single-file layout is only a fallback now — sync when present
+  if (fs.existsSync(path.join(__dirname, "goals.yaml"))) {
+    fs.copyFileSync(path.join(__dirname, "goals.yaml"), path.join(bdrv, "goals.yaml"));
+  }
   // goals/<domain>.yaml splits (see PROJECT.md "Structure & size thresholds") — sync the dir too
   const goalsDir = path.join(__dirname, "goals");
   if (fs.existsSync(goalsDir)) {

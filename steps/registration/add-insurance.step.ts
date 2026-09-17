@@ -23,9 +23,7 @@ export async function addInsuranceStep(ctx: EhrContext, params: ResolvedParams):
   // Type, Member ID, Effective Date, Relationship, Subscriber section) and
   // Save stays disabled until they are filled — fill Testbot defaults.
   const stamp = Date.now().toString().slice(-8);
-  const patient = ctx.scratch.patient as
-    | { lastName?: string; firstName?: string; dob?: string; sex?: string }
-    | undefined;
+  const patient = ctx.scratch.patient;
   await insurance.pickOption("Insurance Type", /Medical/i, "Medical");
   await insurance.fillText("Member ID or #", `TB${stamp}`);
   await insurance.fillToday("Effective Date");
