@@ -19,6 +19,7 @@ import { VoidClaimRebillFlow } from "./void-claim-rebill.flow";
 import { TransferToInsuranceFlow } from "./transfer-to-insurance.flow";
 import { OpenBnrDetailFlow } from "./open-bnr-detail.flow";
 import { DischargeFlow } from "./discharge.flow";
+import { CoverageChangeFlow } from "./coverage-change.flow";
 
 export const FLOWS: Record<string, FlowDefinition> = {
   login: LoginFlow,
@@ -36,4 +37,5 @@ export const FLOWS: Record<string, FlowDefinition> = {
   transfer_to_insurance: TransferToInsuranceFlow,
   open_bnr_detail: OpenBnrDetailFlow,
   discharge: DischargeFlow,
+  coverage_change: CoverageChangeFlow,
 };

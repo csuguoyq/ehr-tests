@@ -146,6 +146,7 @@ npx playwright test                        # 全量回归
 - 同日多次跑患者生成时，DOB 随机年（1980–2005）可能撞上已有 Testbot 记录的年份 → 软分 POTENTIAL DUPLICATE（Duplicate Score 4/6）；force-create（"Create New Patient"）是既定兜底。PO 在 force-create 点击后须等 warning dialog 收起再返回（run-1/run-2 根因：250ms 轮询读到提交前 DOM 误报 duplicate，盲重点已 detach 的按钮）。
 - BNR "Claim Edits Needed"（SZ33286）：文本**不在** "BNR Status: <value>" 头部里，而在其旁红色图标的 MUI Tooltip 中（CommonHeader 的 label/value 整对为 tooltip trigger）；`BillingPage.readBnrStatusHeader` hover 标签读取 `{text, tooltip}`。force bill 后 BNR 状态由服务器 updateBNRStatus 翻转，有延迟——断言走有界重挂载轮询（6 轮 × 10s，先见 "Ready to Bill / Claim Created" 后见 "Claim Edits..."）。
 - 规则引擎表面：命名 worklist 规则存 sqlite `$CCRUN/conf/rule/rule.db` 表 `ruleslists`（id/staffid/name/category/definition JSON）；IN35118 部署的 3 份 rule.rcf 在 `$CCRUN`（live 与模板 diff 即可非破坏性校验部署态）；ruleexecd 存活 = `ps -ef | grep [r]uleexecd`。fbch34 mysql 惯例 `-ucci -pcci` 是**连写** = user `cci` / password `cci`（空格形态 `-u ucci` 被拒，`-u cci` 通过；`runMysqlStep` 一律传 user `cci`）。
+- **日期选择器 max = serverToday + admit/discharge 不可回溯（2026-09-17，TC33731 诊断）**：`CciDatePicker` 在调用方未传 `maxDate`/`futureDate` 时默认 `maxDate = serverToday`（`serverToday` 取 `serverNow()`），故 Reorder Priorities 的 effective date **永远 ≤ box-today**（选不到明天）。同时 Registration 的 Admit/Discharge 表单把 `serverNow()` stamp 进 **disabled** 日期字段（`EncounterForm.tsx` `setFormData("admitTime", serverNow())`；encounters.ts `admitTime`/`dischargeTime` `disabledMask:true` + `defaultNow:true`），新建 encounter **无法回溯** admit/discharge 日期。→ 凡「effective date 严格晚于 anchor 且 ≤ box-today」的 TC 场景（如 TC33731 case #7 = eff 晚于 admit 无出院 → 捕获；eff 晚于 discharge → 不捕获）都**需要过去 anchor**，新建数据无法表达。补测此类场景需指向一个**既有 past-admit active encounter**（原 TC33731 用长住院 encounter 67136235，TC 步骤 2 明写「admit date earlier than the current date」）。
 
 ### 切片（2026 claim TC：SZ35253 + SZ35474，2026-09-16，fbch34）
 
@@ -473,6 +474,24 @@ claim_to_submitted 修复后端到端 PASS。对工作区 09-16 未提交修复�
   ccidb vol3/p1650345443）。start-billing 单次点击回弹重试 1 次（已知行为）。
 - **环境事实**：fbch34 mysql 惯例 `-ucci -pcci` 为连写 = user `cci`（`-u ucci` 被
   1045 拒，`-u cci` 通过；spec 传 user `cci`）。
+
+### TC33731 切片（2026-09-17，fbch34）
+
+按 TC 原文执行 SZ33731 [Worklist] Coverage Change Worklist to consider effective date of insurance priorities 并固化（TCS.md 已登记，部分 PASS）：
+
+- **资产**：goal `coverage_change`（flows 16 个；encounter 链 + 插入第二保险 `add_insurance_2` 使 reorder 有 ≥2 行可拖）+ spec `specs/sz/TC33731-coverage-change-worklist.spec.ts`（test.step 与 TC 13 步映射，@SZ33731）+ Worklists PO（portal rail WORKLIST→directory 双击行→item view→search→Complete）+ Insurance reorder PO（Reorder Priorities 按钮 + 真实鼠标步进拖拽 + Apply + effective-date 对话框 + Confirm + toast）。
+- **TC1**：sqlite `ruleslists` 校验 "Coverage Change" 规则定义含 `InInsEffectivePeriod` + `InsOrder`（捕获条件 = InsOrder/InsStatus 变更 AND effective date 落在 encounter period）。
+- **TC2-6（active）**：新患者→双保险（68888 BCBS PPO + Commercial - Generic/COMMG）→Inpatient Acute admit（admit date = today）→BNR→Reorder 拖拽 row0→1→Apply→effective date = today（= admit date）→Confirm→Coverage Change Worklist 捕获 BNR=H…01→Complete（reason "No further follow-up needed from patient"）。
+- **TC9-11（discharged）**：出院医嘱 Active→Discharge（discharge date = today）→再 Reorder effective = today（= discharge date）→捕获（行显示 discharge date=today 作证）→Complete。
+- **TC7-8（case #7，SZ 核心）+ TC12-13 SKIPPED/blocked**：eff 需严格晚于 anchor 且 ≤ box-today（即过去 anchor）；但日期选择器 max=serverToday 且 admit/discharge 表单把 serverNow() stamp 进 disabled 字段（不可回溯）→ 新建数据无法表达。补测需指向既有 past-admit active encounter（见已知限制；原 TC 用长住院 encounter 67136235）。
+- **固化迭代（run-1..run-8，全 headless fbch34）**：run-1 嵌套 form tab 后 Add/Reorder 只在 "Insurance Overview"（`ensureOverviewView`）+ planId2 "9" 1 字符 < MIN_NUM_PAYER_PLAN_CHARS=3 搜不到→按计划名搜；run-2 "Show Columns" 按钮 a11y name 实为 "Select columns"（改以 search input 佐证 item view）；run-3 JSX 单行 `> Complete <` 裸文本带空格（`hasText /^Complete$/` 漏，改 accessible name 匹配）；run-4 Unsaved Changes 守卫异步弹框 unmount tab bar（`openSubTabResolvingUnsaved` 有界等待）；run-5 Complete 后 grid 不自动刷新（Complete.tsx `isRefresh:false`）→ re-open worklist 强拉 server fetch 再断言 absence；run-6 `fill` 漏 React onChange（value-tracker 去重）→ search 未 commit、grid 停在 2283 未过滤（改 select-all+delete+`pressSequentially` 逐键 + `waitForSearchSettled` 等 grid 反映查询）。
+- **执行记录**：run-8 2/2 PASS（2.4 min，patient A Testbot_2609172359A bnr 1001650345461，encounter 1650345461；today=09/17/2026，tomorrow=09/18/2026）。TC1+TC2-6+TC9-11 端到端 PASS；TC7-8+TC12-13 skipped（blocked，需 past-admit encounter）。
+
+### TC33731 复跑（2026-09-18，fbch34）：一次 Reorder = 每保险记录一条 item，Complete 须选全行
+
+- **发现**：单次 Reorder（两保险优先级互换）在 server 侧产生 **2 条** worklist item——两条保险记录的 InsOrder 各变一次、各触发一条规则事件（reorder step 只执行一次，已排除测试侧重复触发）。证据：只完成首行后 item view 计数停在 "1 Active / 0 Deferred / 1 Completed"、Throughput Summary "1 Completed (last 24h)"。
+- **修复**：`WorklistsPage.completeItem` 由「勾首行 checkbox」改为「点 grid 头部 **Select all rows** checkbox（MUI `checkboxSelection`，此时 grid 已被 search 过滤，全选 = 选中全部匹配行）→ 单个 Complete 对话框一次完成全部」。源码佐证：`Complete.tsx handleComplete` 把所有 checked 行的 id join 后一次 `updateWLAccount` POST（一个 Reason 覆盖全部，成功 toast "Account(s) Sucessfully Completed"）。`readRows` 同步加 BNR 锚定 fallback——header-count 对齐在该 grid 失效（select-all 表头 cell 不是 `.MuiDataGrid-cell` 且数据行多一个 cell，shift 落到 -1，此前 patientName/MRN 读空）。
+- **执行记录**：re-run 2/2 PASS（4.3 min，headed + slow-mo，patient A Testbot_2609180900A bnr 1001650345465，encounter 1650345465；box today=09/17/2026）。TC1+TC2-6+TC9-11 端到端 PASS（discharge 后第二次 reorder 的 item 经 5 轮 bounded 轮询出现，在容忍度内）；TC7-8+TC12-13 skipped（blocked，需 past-admit encounter，见已知限制）。
 
 ### 阶段 2（create_patient 切片，2026-09-12，fbch34）
 

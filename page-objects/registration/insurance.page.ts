@@ -24,8 +24,33 @@ export class InsurancePage {
 
   // ---- Add Insurance lookup dialog (testids verified fbch34 2026-09-16) ----
 
+  /**
+   * Ensure the Insurance sub-tab is showing the "Insurance Overview" nested
+   * tab — Add Insurance and Reorder Priorities only exist there. After
+   * saving an insurance the view stays on that insurance's nested form tab
+   * (Tabs 1..n of InsuranceSubTab), and the nested selection SURVIVES a
+   * sub-tab round-trip, so re-opening the Insurance sub-tab lands back on
+   * the form (fbch34 2026-09-17, TC33731).
+   */
+  async ensureOverviewView(): Promise<void> {
+    const overviewOnly = this.page.getByTestId("insurance-add-insurance-button");
+    const overviewTab = this.page
+      .getByRole("tab", { name: "Insurance Overview", exact: true })
+      .first();
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (await overviewOnly.isVisible().catch(() => false)) return;
+      await overviewTab.click();
+      // A lingering dirty flag can raise the Unsaved Changes confirm on the
+      // nested tab switch — resolve it so the switch can complete.
+      await this.resolveUnsavedChanges().catch(() => undefined);
+      await this.page.waitForTimeout(1000);
+    }
+    await overviewOnly.waitFor({ state: "visible", timeout: 20_000 });
+  }
+
   /** Open the Add Insurance lookup dialog from the Insurance sub-tab. */
   async openLookupDialog(): Promise<void> {
+    await this.ensureOverviewView();
     await this.page.getByTestId("insurance-add-insurance-button").click();
   }
 
@@ -230,5 +255,152 @@ export class InsurancePage {
     await input.press("ControlOrMeta+a");
     await input.press("Delete");
     await input.pressSequentially(digits, { delay: 40 });
+  }
+
+  // ---- Reorder Priorities (inline drag mode → Apply → effective-date
+  //      dialog). Source (InsuranceOverviewForm.tsx): the Insurances card
+  //      header shows "Reorder Priorities"; in reorder mode it swaps to
+  //      Cancel + Apply (Apply disabled until a drag registers) and the
+  //      table gains per-row drag handles (MUI DataGrid rowReordering,
+  //      present only with ≥2 rows). Apply opens ReorderPrioritiesDialog:
+  //      "Please enter the effective date for the reordered priorities:"
+  //      with one CciDatePicker per changed type (default today) + Cancel /
+  //      "Confirm Reorder". Verified on fbch34 2026-09-17 (TC33731). ----
+
+  /** Enter the inline reorder mode (header becomes Cancel + Apply). */
+  async enterReorderMode(): Promise<void> {
+    await this.ensureOverviewView();
+    await this.page
+      .getByRole("button", { name: "Reorder Priorities", exact: true })
+      .first()
+      .click();
+    await expect(
+      this.page.getByRole("button", { name: "Apply", exact: true }).first()
+    ).toBeVisible({ timeout: 15_000 });
+  }
+
+  /** The per-row drag handle (MUI DataGrid rowReordering DragIcon). */
+  dragHandle(rowIndex: number): Locator {
+    return this.page
+      .locator(".MuiDataGrid-row")
+      .nth(rowIndex)
+      .locator('[data-testid="DragIcon"], button[aria-label="Drag"], .MuiSvgIcon-DragIcon')
+      .first();
+  }
+
+  /**
+   * Drag the row at `fromRow` onto the row at `toRow` with a real mouse
+   * drag — the DataGrid reorder is a native drag, so mouse.down → stepped
+   * moves → mouse.up is the proven path (skills ehr-workflow/insurance
+   * E2E walkthrough, 2026-09-10).
+   */
+  async dragRowTo(fromRow: number, toRow: number): Promise<void> {
+    const handle = this.dragHandle(fromRow);
+    await expect(handle, `no drag handle on row ${fromRow}`).toBeVisible({ timeout: 15_000 });
+    const fromBox = await handle.boundingBox();
+    const toBox = await this.page.locator(".MuiDataGrid-row").nth(toRow).boundingBox();
+    if (!fromBox || !toBox) throw new Error("dragRowTo: missing bounding box");
+    const sx = fromBox.x + fromBox.width / 2;
+    const sy = fromBox.y + fromBox.height / 2;
+    const tx = toBox.x + toBox.width / 2;
+    const ty = toBox.y + toBox.height / 2;
+    await this.page.mouse.move(sx, sy);
+    await this.page.mouse.down();
+    const steps = 12;
+    for (let i = 1; i <= steps; i++) {
+      await this.page.mouse.move(
+        sx + ((tx - sx) * i) / steps,
+        sy + ((ty - sy) * i) / steps,
+        { steps: 2 }
+      );
+      await this.page.waitForTimeout(50);
+    }
+    await this.page.mouse.up();
+    // Give the grid a beat to register the new order (Apply enables on change).
+    await this.page.waitForTimeout(1500);
+  }
+
+  reorderDialog(): Locator {
+    return this.page
+      .locator(".MuiDialog-root")
+      .filter({ hasText: "Please enter the effective date" })
+      .last();
+  }
+
+  /** Apply the drag → the effective-date dialog must open. */
+  async applyReorder(): Promise<void> {
+    const apply = this.page.getByRole("button", { name: "Apply", exact: true }).first();
+    await expect(apply, "Apply stayed disabled — the drag was not registered").toBeEnabled({
+      timeout: 15_000,
+    });
+    await apply.click();
+    await expect(this.reorderDialog()).toBeVisible({ timeout: 15_000 });
+  }
+
+  /**
+   * Pick the effective date in the reorder dialog (`date` = MM/DD/YYYY).
+   * Same MUI Pickers path as patient-create pickDob: Choose date → year →
+   * month → day (the day click commits on fbch34).
+   */
+  async setReorderEffectiveDate(date: string): Promise<void> {
+    const dlg = this.reorderDialog();
+    const input = dlg.locator("input").first();
+    const [mm, dd, yyyy] = date.split("/").map((p) => String(Number(p)));
+    await dlg.locator('button[aria-label*="Choose date"]').first().click();
+    const popper = this.page.locator(".MuiPickersLayout-root").last();
+    await expect(popper).toBeVisible();
+
+    const yearOption = popper.getByText(yyyy, { exact: true }).first();
+    if (!(await yearOption.isVisible().catch(() => false))) {
+      const toYearView = popper.locator('button[aria-label*="switch to year view"]');
+      if (await toYearView.isVisible().catch(() => false)) await toYearView.click();
+    }
+    await popper.getByText(yyyy, { exact: true }).first().click();
+
+    const header = popper.locator(".MuiPickersCalendarHeader-root");
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
+    ];
+    for (let i = 0; i < 12; i++) {
+      const headerText = await header.innerText();
+      if (headerText.includes(monthNames[Number(mm) - 1])) break;
+      const want = Number(mm);
+      const cur = monthNames.findIndex((m) => headerText.includes(m)) + 1;
+      await popper
+        .getByRole("button", { name: cur < want ? "Next month" : "Previous month" })
+        .click();
+    }
+
+    await popper.locator("button").filter({ hasText: new RegExp(`^${dd}$`) }).first().click();
+    const okButton = popper.getByRole("button", { name: "OK", exact: true });
+    if (await okButton.isVisible().catch(() => false)) {
+      await okButton.click();
+    } else if (await popper.isVisible().catch(() => false)) {
+      await input.click();
+    }
+    await expect(input).toHaveValue(date);
+  }
+
+  /** Confirm the reorder (dialog OK = "Confirm Reorder"). */
+  async confirmReorder(): Promise<void> {
+    const dlg = this.reorderDialog();
+    await dlg.getByRole("button", { name: "Confirm Reorder", exact: true }).click();
+    await expect(dlg).toBeHidden({ timeout: 15_000 });
+  }
+
+  /** Success toast after a posted reorder ("Succesfully" typo is in source). */
+  async expectReorderToast(timeoutMs = 15_000): Promise<void> {
+    await expect(
+      this.page.getByText(/Succesfully reordered insurance priorities/i).first()
+    ).toBeVisible({ timeout: timeoutMs });
+  }
+
+  /** Leave reorder mode without applying (header Cancel). */
+  async cancelReorder(): Promise<void> {
+    await this.page.getByRole("button", { name: "Cancel", exact: true }).first().click();
+    await expect(
+      this.page.getByRole("button", { name: "Reorder Priorities", exact: true }).first()
+    ).toBeVisible({ timeout: 15_000 });
   }
 }

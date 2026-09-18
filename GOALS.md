@@ -17,5 +17,6 @@
 | claim_to_errored | ClaimToErroredFlow | 全部 | 同 claim_to_submitted（无 submit 尾段） | 新增（fbch34 2026-09-17，TC35118）：链止于 Force Bill，终点态 = claim Errored + BNR "Claim Edits Needed"（红色图标 tooltip，SZ33286）。已固化为 `specs/sz/TC35118-claim-edits-needed.spec.ts` |
 | void_claim_rebill | VoidClaimRebillFlow | Charge Services (Billing/Claims) | mrn?/patientName?, forceReason | 大部分通过（fbch34 2026-09-17）：void 成功（Void/Cancel 行出现）；re-bill 腿需 BNR 状态从 Billed 翻回可计费（服务器侧 updateBNRStatus），现以 8 分钟重挂载轮询等待，未翻转则诊断报错（见 TCS.md SZ35474） |
 | transfer_to_insurance | TransferToInsuranceFlow | Registration, CPOE2, Billing | ssn?/lastName?, planId, transactionCode(0001), balanceType(Guarantor), amount?(默认全额), notes? | **已通过**（fbch34 2026-09-16，SZ35253 回归 PASS）：出院→计费→补保险→Assign 到 BNR→0001 转账（guarantor 归零 + claim 生成）。前置：患者须有 Person 担保人且保险已 Assign（见 TCS.md） |
+| coverage_change | CoverageChangeFlow | Registration | planId(68888), planId2("Commercial - Generic"=plan 9/COMMG，按计划名搜——第二保险计划，重排需 ≥2 行；1 字符计划号搜不到), lastName?, ssn?/mrn?（resume）, encounterType, admit, waitForBnr, bnrTimeoutMs | 新增（fbch34 2026-09-17，TC33731）：新患者→Self 担保人→**双保险计划**→Inpatient Acute admit+BNR（活跃 encounter 就绪，供 Insurance Reorder Priorities 测试）；reorder 与 worklist 校验由 spec 按 TC 步驱动（`specs/sz/TC33731-coverage-change-worklist.spec.ts`） |
 
 目标按需增加，不预设全量。参数 schema 见 `goals.yaml`。

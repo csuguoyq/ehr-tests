@@ -27,9 +27,19 @@ export class RegistrationAppPage {
     this.createNewPatientButton = page.getByTestId("patient-search-create-new-pat-btn");
   }
 
-  /** Click the rail app button and wait for the Registration search screen. */
+  /** Click the rail app button and wait for the Registration search screen.
+   *  When the portal-home rail is not in the DOM — we are inside another
+   *  module (e.g. Worklists) or a patient chart context — the /Cps deep
+   *  link rebuilds it (fbch34 2026-09-17, TC33731). */
   async open(label = "REGISTRATION"): Promise<void> {
-    await this.railButton(label).click();
+    const btn = this.railButton(label);
+    if (!(await btn.isVisible().catch(() => false))) {
+      await this.page.goto(`${this.env.baseUrl}/Cps`, { waitUntil: "domcontentloaded" });
+      await expect
+        .poll(() => btn.isVisible().catch(() => false), { timeout: 20_000 })
+        .toBe(true);
+    }
+    await btn.click();
     await this.expectLoaded();
   }
 

@@ -50,11 +50,10 @@ export async function addInsuranceStep(ctx: EhrContext, params: ResolvedParams):
   ctx.log.info(`insurance saved (plan ${planQuery})`);
 
   // A dirty flag can linger after saving; the NEXT navigation (e.g. the
-  // encounter form) would then hit an "Unsaved Changes" modal. Provoke it
-  // now on a harmless sub-tab switch and resolve it there.
-  await tabs.subTab("Demographics").click();
-  if (await insurance.resolveUnsavedChanges()) {
-    ctx.log.info("unsaved-changes confirm resolved (Save Changes)");
-  }
-  await tabs.openSubTab("Demographics");
+  // encounter form) would then hit an "Unsaved Changes" modal. Settle on
+  // Demographics, resolving the guard dialog if it appears — it is raised
+  // asynchronously and unmounts the tab bar, so it must be waited for, not
+  // checked with an immediate isVisible() (which races it in and misses it).
+  await tabs.openSubTabResolvingUnsaved("Demographics");
+  ctx.log.info("settled on Demographics (unsaved-changes guard resolved if raised)");
 }
