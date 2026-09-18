@@ -24,6 +24,7 @@
 import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { WorklistsPage } from "../../page-objects/worklists/worklists.page";
+import { EnvBlockedError } from "../../src/utils/errors";
 
 export async function coverageChangeWorklistStep(
   ctx: EhrContext,
@@ -63,7 +64,7 @@ export async function coverageChangeWorklistStep(
       );
     }
     if (!match.length) {
-      throw new Error(
+      throw new EnvBlockedError(
         `worklist item for "${searchKey}" never appeared after 5 re-searches; rows: ${JSON.stringify((await wl.readRows()).map((r) => r.cells))}`
       );
     }

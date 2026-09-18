@@ -9,6 +9,8 @@
     "build:drv": "tsc -p tsconfig.build.json && node scripts/sync-goals.mjs",
     "check:goals": "node scripts/check-goals.mjs",
     "check:selectors": "node scripts/check-selectors.mjs",
+    "setup:hooks": "node scripts/setup-hooks.mjs",
+    "regression": "node scripts/regression.mjs",
     "setup:ssh": "node scripts/setup-ssh.mjs",
     "drive:ml": "node drive-ml.js",
     "show-report": "playwright show-report"

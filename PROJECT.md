@@ -503,6 +503,14 @@ claim_to_submitted 修复后端到端 PASS。对工作区 09-16 未提交修复�
 - **A6**：`drive-ml.js` 改 `require("@playwright/test")`，去掉对传递依赖 `playwright` 的依赖。
 - **执行中发现的新竞态（首次 run TC10-11 失败）**：单 Reorder 的多条 item **异步落地**——第一次 Complete 只覆盖当时可见的 item，re-fetch 后浮出 Worklist Age=0 的新 row，absence 断言失败。修复：step 在 Complete 后增加有界「残留再 Complete」循环（re-open + re-search，最多 3 轮）。复跑 2/2 PASS（4.3 min，fbch34，patient A Testbot_2609181839A bnr 1001650345484），TC6 中循环真实触发一次，修复有效。
 
+### Slice B 基建（2026-09-18，计划见 docs/slice-plan-2026-09-18.md）
+
+- **B1 pre-push 一致性门**：`scripts/hooks/pre-push`（sh：build:drv → check:goals → tsc --noEmit）；`npm run setup:hooks`（`scripts/setup-hooks.mjs`）设 `core.hooksPath scripts/hooks`；README 记 `--no-verify` 逃生口。runner 恢复前，这是门的本机执行点。
+- **B2 EnvBlockedError**：`src/utils/errors.ts`——message 前缀 `[ENV-BLOCKED]`，只用于「环境/服务器侧确定性未就绪」的 throw，不改变测试结果、只让报告可分类。落点：start-billing 的 waitForRebillable 耗尽、submit-claim 的服务器管线等待耗尽、coverage-change step 的 5 轮 re-search 耗尽。NEW_MODULE.md 稳定性实践第 9 条同步补引。
+- **B3 回归日志落盘**：`npm run regression`（`scripts/regression.mjs`）：spawn `playwright test`（参数透传）+ list 输出 tee 到 `test-results/regression-<时间戳>.log`，结束打印日志路径。
+- **验证**：手动跑 hook 脚本全绿；`npm run regression -- specs/login.spec.ts` 3 passed（30s，fbch34），日志落盘确认。
+- **用户动作项（不在代码内）**：向管理员核实 GitLab shared runner 状态（I14）与 main 分支保护是否真的开启（09-18 直推成功，与 9-17 审查记录矛盾）。
+
 ### 阶段 2（create_patient 切片，2026-09-12，fbch34）
 
 - 搜索表单填单个主条件（MRN）即可解锁 Create New Patient 按钮；`sf-mrn-tf` 等 testid 在 MUI 包装 div 上，用内层 `input` fill。

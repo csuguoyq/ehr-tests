@@ -21,8 +21,10 @@ cd ehr-tests
 cp .env.example .env      # 按目标环境改 EHR_HOST（不同主机是不同物理机！）
 npm install
 npx playwright install chromium   # 仅首次或浏览器版本不匹配时
+npm run setup:hooks               # 挂 pre-push 一致性门（build:drv + check:goals + tsc，--no-verify 可逃生）
 npx playwright test               # 全部 spec
 npx playwright test specs/login.spec.ts    # 阶段 1：登录
+npm run regression -- specs/login.spec.ts  # 同上，但 list 输出完整落盘到 test-results/regression-<时间戳>.log
 npx playwright test --headed      # 有窗口调试
 ```
 

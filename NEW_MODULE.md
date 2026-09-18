@@ -71,7 +71,9 @@ spec 里 `runGoal("<name>")` 引用存在性。**提交前必跑：`npm run buil
 7. **汇报必带 host**（`EHR_HOST`）：不同 host 是不同物理机，跨机结果不可比。
 8. **日期断言按 box「今天」**（fbch34 美西）：today/yesterday 双候选（SZ35266 spec 模式）。
 9. **环境阻断与真实失败分开报**：等服务器侧状态（claim 管线 / BNR 翻转）不算失败，
-   报错注明等待条件与超时。
+   报错注明等待条件与超时。确定性耗尽的 throw 用 `EnvBlockedError`
+   （`src/utils/errors.ts`，message 带 `[ENV-BLOCKED]` 前缀），让报告可分类；
+   它不改变测试结果（不自动 skip/pass）。
 10. **失败证据**：trace retain-on-failure + 截图 only-on-failure；关键断言前
     `test.info().attach` 现场截图。
 

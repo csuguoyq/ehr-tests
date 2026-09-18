@@ -4,6 +4,7 @@
 import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { BillingPage } from "../../page-objects/charge/billing.page";
+import { EnvBlockedError } from "../../src/utils/errors";
 
 export async function startBillingStep(ctx: EhrContext, _params: ResolvedParams): Promise<void> {
   const billing = new BillingPage(ctx.page, ctx.env);
@@ -15,7 +16,7 @@ export async function startBillingStep(ctx: EhrContext, _params: ResolvedParams)
   // a server-side BNR status flip (fbch34 2026-09-16, TC35474).
   const actionable = await billing.waitForRebillable(480_000);
   if (!actionable) {
-    throw new Error(
+    throw new EnvBlockedError(
       "BNR never returned to a billable state: after 8 minutes of remount polling neither Start Billing nor Force Bill appeared" +
         " (BNR status flip depends on the server-side updateBNRStatus, see TCS.md environment notes)."
     );

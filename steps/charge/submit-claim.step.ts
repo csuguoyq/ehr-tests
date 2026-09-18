@@ -6,6 +6,7 @@ import type { ResolvedParams } from "../../src/types/goal";
 import { BillingPage } from "../../page-objects/charge/billing.page";
 import { ClaimsPage } from "../../page-objects/charge/claims.page";
 import { str } from "../../src/utils/params";
+import { EnvBlockedError } from "../../src/utils/errors";
 
 
 export async function submitClaimStep(ctx: EhrContext, params: ResolvedParams): Promise<void> {
@@ -24,7 +25,7 @@ export async function submitClaimStep(ctx: EhrContext, params: ResolvedParams): 
   // false-positived this env block).
   const existing = await claims.waitForFirstRow(billing, 45_000);
   if (existing.length === 0) {
-    throw new Error(
+    throw new EnvBlockedError(
       "No claim to submit: Insurance Claims is empty after force bill. Claim creation on this box depends on the server-side pipeline" +
         " (submitClaims/updateBNRStatus, see TC32438/TC33301 and TCS.md SZ35474 notes)."
     );

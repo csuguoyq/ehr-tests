@@ -1,0 +1,12 @@
+#!/bin/sh
+# scripts/hooks/pre-push — consistency gate before every push (Slice B1,
+# 2026-09-18). Until a CI runner is restored, this is the gate's local
+# execution point. Escape hatch: git push --no-verify (use deliberately).
+set -e
+echo "pre-push: build:drv"
+npm run build:drv
+echo "pre-push: check:goals"
+npm run check:goals
+echo "pre-push: tsc --noEmit"
+npx tsc --noEmit
+echo "pre-push: all checks passed"
