@@ -520,6 +520,13 @@ claim_to_submitted 修复后端到端 PASS。对工作区 09-16 未提交修复�
 - **C5 flows 域层**：`flows/access|registration|revenue-cycle/` 拆分（移动不改语义，`git mv` 保留历史）；specs 补域 tag 并存；PROJECT.md 阈值状态更新为「已实施」。
 - **验证**：build:drv + check:goals（覆盖 C3 loader + C4 移植断言 + C5 注册表）+ tsc --noEmit 全绿；fbch34 无头 3/3 PASS（5.9 min）——create-patient.spec（C1 pickDob，30.9s）、discharge.spec（C2 rail + @registration 域，1.8m）、claim-to-submitted.spec（C5 revenue 域全链 + C3 展开（resolved params 出现 mrn/ssn/startAt/skipStages），3.5m）。
 
+### 全量回归（2026-09-18 深夜，fbch34，Slice A/B/C 落地后）
+
+- `npm run regression` 全 specs 目录：**13 passed / 1 failed（35.5 min）**，日志 `test-results/regression-2026-09-18T15-22-37-397Z.log`。
+- 唯一失败 TC35474 = **既有环境阻断**（TCS.md 2026-09-17 已登记「仅剩 re-bill 腿环境阻断」）：void 成功后 BNR 停在 "Billed / Claim Created"，服务器侧 updateBNRStatus 翻转 8 分钟未来。同日单独重跑（全新患者 Testbot_2609190001 / bnr 1001650345512）复现同点 → 可复现环境问题，非当日重构回归（失败链前半段用同一批 PO 全部通过）。
+- 首个 `EnvBlockedError` 实战：报告按预期以 `[ENV-BLOCKED]` 前缀分类（B2 生效）。
+- 服务器侧发现（只读检查）：`bnrStatusUpdate` hopd **双实例**（Jul07 + 今日 08:42）——双消费者同队列可能互吞翻转消息；另有 Sep09 遗留 playwright 进程挂在 box（guoyq 会话）。**待管理员/用户处理。**
+
 ### 阶段 2（create_patient 切片，2026-09-12，fbch34）
 
 - 搜索表单填单个主条件（MRN）即可解锁 Create New Patient 按钮；`sf-mrn-tf` 等 testid 在 MUI 包装 div 上，用内层 `input` fill。
