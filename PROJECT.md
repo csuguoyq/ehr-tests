@@ -99,7 +99,7 @@ docs/status/<域>.md           # PAGES/GOALS 超阈值后外置；MODULES.md 永
 
 ### 触发阈值（按此调整，平时不动）
 
-- `flows/`、`specs/` 目标 >15 个 → 加域层目录。**当前 flows 已注册 15 个目标（claim_to_errored 加入后）——域层评估已触发，留待后续架构轮实施（2026-09-17 审查记录 + TC35118 切片更新）。**
+- `flows/`、`specs/` 目标 >15 个 → 加域层目录。**已于 2026-09-18 架构轮实施：`flows/access/`（login）+ `flows/registration/`（create-patient / create-encounter / discharge / coverage-change）+ `flows/revenue-cycle/`（charge / coding / billing / claims 全部），`encounter-stages.ts` 留根作共享单元，`flows/index.ts` 从子目录 re-export；specs 不挪文件，按域补 `@access` / `@registration` / `@revenue-cycle` tag（与现有 tag 并存，`--grep-tag` 可跑整域）。**
 - `goals.yaml` >300 行 → 拆 `goals/<域>.yaml`（加载器兼容单文件与目录两种形态，重复目标键会报错）。**已于 2026-09-17 架构轮拆分完成：auth / registration / charge / claims 四文件，根 goals.yaml 删除（消除双份拷贝漂移窗口）。**
 - `PAGES.md` >300 行或单模块 >10 张页面卡 → 外置 `docs/status/`，MODULES.md 留链接。
 - 目录调整只在专门的架构轮做，不顺带切片（铁律 9）。
@@ -510,6 +510,15 @@ claim_to_submitted 修复后端到端 PASS。对工作区 09-16 未提交修复�
 - **B3 回归日志落盘**：`npm run regression`（`scripts/regression.mjs`）：spawn `playwright test`（参数透传）+ list 输出 tee 到 `test-results/regression-<时间戳>.log`，结束打印日志路径。
 - **验证**：手动跑 hook 脚本全绿；`npm run regression -- specs/login.spec.ts` 3 passed（30s，fbch34），日志落盘确认。
 - **用户动作项（不在代码内）**：向管理员核实 GitLab shared runner 状态（I14）与 main 分支保护是否真的开启（09-18 直推成功，与 9-17 审查记录矛盾）。
+
+### Slice C 架构轮（2026-09-18，计划见 docs/slice-plan-2026-09-18.md）
+
+- **C1 MUI 日期梯子收口**：新建 `src/utils/mui-date.ts`（`openMuiPicker` + `pickMuiDate`：年视图幂等切换 + 月导航循环 + 日点击 + OK-有则点/无则点 input 兜底），合并 patient-create `pickDob` 与 insurance `setReorderEffectiveDate` 两条重复路径；两个 PO 保留弹窗/Popper 定位，委托算法。
+- **C2 rail 定位器收口（4→1）**：新建 `page-objects/portal-rail.page.ts`（`button(label)` + `clickApp(label)`）；worklists / registration-app / account-lookup（删模块级 `page_railClick`）/ order-entry 四个 PO 改为组合，各自的深链兜底与 loaded 判定留在原 PO。
+- **C3 resume 参数组（4→1）**：loader（`loadGoals`）支持任意 goals yaml 顶层 `paramGroups:` + goal params `$group: <name>` 载入时展开（goal 自身键覆盖组键；组名冲突/未知组报错；允许只有 paramGroups 的文件）。新建 `goals/_shared.yaml` 定义 `resume` 组（mrn/ssn/startAt/skipStages），claim_to_submitted / claim_to_errored / coverage_change 三处重复块换成 `$group: resume`；check-goals 走同一 loader 天然一致。
+- **C4 单测收口出 e2e**：check-goals.mjs 新增「goal param semantics」段（matchGoal 命中与入口报错 + login/create_patient/claim_to_submitted/coverage_change 参数默认值与覆盖断言 + `$group` 展开校验）；login（schema test）/create-patient/claim-to-submitted/TC33731 四个 spec 里的 browser-free test 删除（login.spec 保留 NL→执行 e2e 与入口报错 e2e）。铁律 10 例外，本切片按计划改 spec。
+- **C5 flows 域层**：`flows/access|registration|revenue-cycle/` 拆分（移动不改语义，`git mv` 保留历史）；specs 补域 tag 并存；PROJECT.md 阈值状态更新为「已实施」。
+- **验证**：build:drv + check:goals（覆盖 C3 loader + C4 移植断言 + C5 注册表）+ tsc --noEmit 全绿；fbch34 无头 3/3 PASS（5.9 min）——create-patient.spec（C1 pickDob，30.9s）、discharge.spec（C2 rail + @registration 域，1.8m）、claim-to-submitted.spec（C5 revenue 域全链 + C3 展开（resolved params 出现 mrn/ssn/startAt/skipStages），3.5m）。
 
 ### 阶段 2（create_patient 切片，2026-09-12，fbch34）
 

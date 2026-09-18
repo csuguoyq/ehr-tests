@@ -6,32 +6,18 @@
 
 import { test, expect } from "../fixtures/ehr.fixture";
 import { runFromInput, runGoal, loadGoals } from "../src/executor/runner";
-import { matchGoal } from "../src/executor/goal-matcher";
-import { resolveParams } from "../src/executor/param-resolver";
-import { loadEhrEnv } from "../src/types/ehr-context";
 
-test("goal-driven login: natural language match -> param resolution -> flow execution", async ({ ehr }) => {
+test("goal-driven login: natural language match -> param resolution -> flow execution", { tag: "@access" }, async ({ ehr }) => {
   // Natural-language entry point (runtime uses pure matching, no AI).
   await runFromInput(ehr.page, process.env.EHR_GOAL_INPUT || "login");
   await expect(ehr.page).toHaveTitle(/CliniComp/);
 });
 
-test("goal schema: login param defaults come from env, explicit params override", async () => {
-  // Browser-free: config comes from loadEhrEnv(), no page needed.
-  const goals = loadGoals();
-  const goal = goals["login"];
-  if (!goal) throw new Error("goals.yaml is missing the login goal");
+// Param-default/override and matchGoal unit checks moved to
+// scripts/check-goals.mjs section "goal param semantics" (Slice C4,
+// 2026-09-18) — the goal registry is not a browser concern.
 
-  const username = loadEhrEnv().username;
-  const resolved = resolveParams(goal, { params: { username } });
-  if (resolved.username !== username) {
-    throw new Error(`explicit username did not take effect: ${JSON.stringify(resolved.username)}`);
-  }
-  const byAlias = matchGoal("login", goals);
-  if (byAlias.goal.name !== "login") throw new Error("alias 'login' match failed");
-});
-
-test("goal matching: unregistered and unimplemented goals both fail at entry", async ({ ehr }) => {
+test("goal matching: unregistered and unimplemented goals both fail at entry", { tag: "@access" }, async ({ ehr }) => {
   let threw = false;
   try {
     await runFromInput(ehr.page, "totally nonexistent goal xyz");

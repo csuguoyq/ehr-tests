@@ -2,24 +2,28 @@
 // (rule: unimplemented modules are only registered here, no empty files upfront).
 // Consistency between this registry and goals.yaml `implemented: true` is
 // enforced by `npm run check:goals` (CI gate).
+//
+// Domain layout (Slice C5, 2026-09-18; the 16-file root crossed the
+// directory-size threshold): access/ | registration/ | revenue-cycle/.
+// encounter-stages.ts stays at the flows root as a shared unit.
 
 import type { FlowDefinition } from "../src/types/flow";
-import { LoginFlow } from "./login.flow";
-import { CreatePatientFlow } from "./create-patient.flow";
-import { CreateEncounterFlow } from "./create-encounter.flow";
-import { QuickChargeFlow } from "./quick-charge.flow";
-import { CodingCompleteFlow } from "./coding-complete.flow";
-import { LookupAccountFlow } from "./lookup-account.flow";
-import { StartBillingFlow } from "./start-billing.flow";
-import { ForceBillFlow } from "./force-bill.flow";
-import { SubmitClaimFlow } from "./submit-claim.flow";
-import { ClaimToSubmittedFlow } from "./claim-to-submitted.flow";
-import { ClaimToErroredFlow } from "./claim-to-errored.flow";
-import { VoidClaimRebillFlow } from "./void-claim-rebill.flow";
-import { TransferToInsuranceFlow } from "./transfer-to-insurance.flow";
-import { OpenBnrDetailFlow } from "./open-bnr-detail.flow";
-import { DischargeFlow } from "./discharge.flow";
-import { CoverageChangeFlow } from "./coverage-change.flow";
+import { LoginFlow } from "./access/login.flow";
+import { CreatePatientFlow } from "./registration/create-patient.flow";
+import { CreateEncounterFlow } from "./registration/create-encounter.flow";
+import { QuickChargeFlow } from "./revenue-cycle/quick-charge.flow";
+import { CodingCompleteFlow } from "./revenue-cycle/coding-complete.flow";
+import { LookupAccountFlow } from "./revenue-cycle/lookup-account.flow";
+import { StartBillingFlow } from "./revenue-cycle/start-billing.flow";
+import { ForceBillFlow } from "./revenue-cycle/force-bill.flow";
+import { SubmitClaimFlow } from "./revenue-cycle/submit-claim.flow";
+import { ClaimToSubmittedFlow } from "./revenue-cycle/claim-to-submitted.flow";
+import { ClaimToErroredFlow } from "./revenue-cycle/claim-to-errored.flow";
+import { VoidClaimRebillFlow } from "./revenue-cycle/void-claim-rebill.flow";
+import { TransferToInsuranceFlow } from "./revenue-cycle/transfer-to-insurance.flow";
+import { OpenBnrDetailFlow } from "./revenue-cycle/open-bnr-detail.flow";
+import { DischargeFlow } from "./registration/discharge.flow";
+import { CoverageChangeFlow } from "./registration/coverage-change.flow";
 
 export const FLOWS: Record<string, FlowDefinition> = {
   login: LoginFlow,

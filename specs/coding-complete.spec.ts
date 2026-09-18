@@ -10,7 +10,7 @@ import { generateLastName } from "../steps/registration/patient-data";
 
 test(
   "goal-driven coding_complete: diagnoses I69.941+S94.10XD + discharge disposition -> Coding Complete",
-  { tag: "@slow" },
+  { tag: ["@slow", "@revenue-cycle"] },
   async ({ authedPage }) => {
     const lastName = generateLastName();
     await runGoal(authedPage, "create_encounter", {

@@ -11,15 +11,17 @@
 //   npx playwright test specs/claim-to-submitted.spec.ts
 
 import { test, expect } from "../fixtures/auth.fixture";
-import { runGoal, createEhrContext, loadGoals } from "../src/executor/runner";
-import { resolveParams } from "../src/executor/param-resolver";
+import { runGoal, createEhrContext } from "../src/executor/runner";
 import { loadEhrEnv } from "../src/types/ehr-context";
 import { generateLastName } from "../steps/registration/patient-data";
 import { ClaimsPage } from "../page-objects/charge/claims.page";
 
+// Param-default unit checks moved to scripts/check-goals.mjs section
+// "goal param semantics" (Slice C4, 2026-09-18).
+
 test(
   "goal-driven claim_to_submitted: create patient -> billing -> claim Submitted (host in .env)",
-  { tag: "@slow" },
+  { tag: ["@slow", "@revenue-cycle"] },
   async ({ authedPage }) => {
     test.setTimeout(900_000); // full revenue cycle incl. the BNR wait
     const lastName = generateLastName();
@@ -50,19 +52,3 @@ test(
     ).toBe(true);
   }
 );
-
-// No browser fixtures here: this check is pure Node (goals.yaml schema +
-// param resolution). Requesting no fixture also means NO browser window —
-// previously it launched a blank about:blank window that outlived the real
-// test's window (KEEP_BROWSER_MS) and confused headed runs.
-test("goal schema: claim_to_submitted is implemented and default params resolve", async () => {
-  const goals = loadGoals();
-  const goal = goals["claim_to_submitted"];
-  if (!goal) throw new Error("goals.yaml is missing the claim_to_submitted goal");
-  if (goal.implemented === false) throw new Error("claim_to_submitted should be marked implemented: true");
-
-  const resolved = resolveParams(goal, {});
-  if (resolved.admit !== true) throw new Error("claim_to_submitted should default to admit: true");
-  if (resolved.waitForBnr !== true) throw new Error("claim_to_submitted should default to waitForBnr: true");
-  void resolved;
-});

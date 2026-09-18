@@ -2,8 +2,8 @@
 // Hospital BNR detail in Charge Services (read-only positioning goal used by
 // specs and orchestrations that assert on BNR tabs directly).
 
-import type { FlowDefinition } from "../src/types/flow";
-import { openBnrDetailStep } from "../steps/charge/open-bnr-detail.step";
+import type { FlowDefinition } from "../../src/types/flow";
+import { openBnrDetailStep } from "../../steps/charge/open-bnr-detail.step";
 
 export const OpenBnrDetailFlow: FlowDefinition = {
   goal: "open_bnr_detail",

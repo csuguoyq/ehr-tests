@@ -7,12 +7,12 @@
 // reorder's effective date). The reorder + worklist verification are NOT
 // part of the flow — the spec drives them per TC step.
 
-import type { FlowDefinition } from "../src/types/flow";
-import type { Stage } from "./encounter-stages";
-import { encounterStages } from "./encounter-stages";
-import { addInsuranceStep } from "../steps/registration/add-insurance.step";
-import { openPatientRegistrationStep } from "../steps/registration/open-patient-registration.step";
-import { str } from "../src/utils/params";
+import type { FlowDefinition } from "../../src/types/flow";
+import type { Stage } from "../encounter-stages";
+import { encounterStages } from "../encounter-stages";
+import { addInsuranceStep } from "../../steps/registration/add-insurance.step";
+import { openPatientRegistrationStep } from "../../steps/registration/open-patient-registration.step";
+import { str } from "../../src/utils/params";
 
 // Insert a second insurance stage right after add_insurance (data mapping,
 // not branching: the second plan comes from params.planId2).

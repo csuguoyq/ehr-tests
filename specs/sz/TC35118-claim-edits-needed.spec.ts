@@ -46,7 +46,7 @@ const BNR_FLIP_ROUNDS = 6;
 
 test(
   "TC35118: force-billed claim lands 'Errored' and BNR shows 'Claim Edits Needed' (host in .env)",
-  { tag: "@SZ35118" },
+  { tag: ["@SZ35118", "@revenue-cycle"] },
   async ({ authedPage }) => {
     test.setTimeout(1_200_000);
     const lastName = generateLastName();

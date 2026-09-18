@@ -2,9 +2,9 @@
 // BNR in Charge Services, complete the diagnosis + ADT coding, and complete
 // the coding session.
 
-import type { FlowDefinition } from "../src/types/flow";
-import { openBnrDetailStep } from "../steps/charge/open-bnr-detail.step";
-import { codingCompleteStep } from "../steps/charge/coding-complete.step";
+import type { FlowDefinition } from "../../src/types/flow";
+import { openBnrDetailStep } from "../../steps/charge/open-bnr-detail.step";
+import { codingCompleteStep } from "../../steps/charge/coding-complete.step";
 
 export const CodingCompleteFlow: FlowDefinition = {
   goal: "coding_complete",

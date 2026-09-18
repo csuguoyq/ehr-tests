@@ -11,7 +11,7 @@ import { generateLastName, generateSsn } from "../steps/registration/patient-dat
 
 test(
   "goal-driven discharge: CPOE2 discharge order -> Registration Discharge Patient",
-  { tag: "@slow" },
+  { tag: ["@slow", "@registration"] },
   async ({ authedPage }) => {
     const lastName = generateLastName();
     const ssn = generateSsn();

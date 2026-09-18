@@ -18,6 +18,7 @@
 import type { Page, Locator } from "@playwright/test";
 import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
+import { pickMuiDate, openMuiPicker } from "../../src/utils/mui-date";
 
 export class PatientCreatePage {
   private readonly page: Page;
@@ -65,12 +66,10 @@ export class PatientCreatePage {
 
   /**
    * Pick a date through the DatePicker's own calendar UI (typing into the
-   * input is unreliable). `dob` is MM/DD/YYYY. Path: Choose date → year view →
-   * target year → navigate months → day cell. Selecting a day commits and
-   * closes on fbch34; a legacy OK button (other boxes) is clicked if present.
+   * input is unreliable). The dialog/popper stay PO-owned; the year → month
+   * → day ladder is the shared `pickMuiDate` (src/utils/mui-date.ts).
    */
   async pickDob(dob: string): Promise<void> {
-    const [mm, dd, yyyy] = dob.split("/").map((p) => String(Number(p)));
     const chooseDate = this.dialog.locator('button[aria-label*="Choose date"]');
     // The early duplicate check can pop its dialog mid-form (intercepts every
     // click) — force-create through it before continuing (fbch34 2026-09-16).
@@ -79,56 +78,8 @@ export class PatientCreatePage {
       await dupButton.click();
       await dupButton.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => {});
     }
-    await chooseDate.click();
-
-    const popper = this.page.locator(".MuiPickersLayout-root");
-    await expect(popper).toBeVisible();
-
-    // Reach the target year. The popper may already be in year view (e.g. it
-    // re-opens in the last-used view) — only toggle when the year is not
-    // offered, and never toggle twice (that flips back to day view).
-    const yearOption = popper.getByText(yyyy, { exact: true }).first();
-    if (!(await yearOption.isVisible().catch(() => false))) {
-      const toYearView = popper.locator('button[aria-label*="switch to year view"]');
-      if (await toYearView.isVisible().catch(() => false)) {
-        await toYearView.click();
-      }
-    }
-    await popper.getByText(yyyy, { exact: true }).first().click();
-
-    // After the year click the calendar shows the target year in the CURRENT
-    // month; walk to the target month (≤ 12 clicks either direction).
-    const header = popper.locator(".MuiPickersCalendarHeader-root");
-    const monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
-    ];
-    for (let i = 0; i < 12; i++) {
-      const headerText = await header.innerText();
-      if (headerText.includes(monthNames[Number(mm) - 1])) break;
-      const want = Number(mm);
-      const cur = monthNames.findIndex((m) => headerText.includes(m)) + 1;
-      await popper
-        .getByRole("button", { name: cur < want ? "Next month" : "Previous month" })
-        .click();
-    }
-
-    // Day cells expose a gridcell role (not "button"); match by exact text.
-    await popper
-      .locator("button")
-      .filter({ hasText: new RegExp(`^${dd}$`) })
-      .first()
-      .click();
-
-    // fbch34: day click closes the popper. Other boxes keep it open behind an
-    // OK button — commit through whichever the build provides.
-    const okButton = popper.getByRole("button", { name: "OK", exact: true });
-    if (await okButton.isVisible().catch(() => false)) {
-      await okButton.click();
-    } else if (await popper.isVisible().catch(() => false)) {
-      await this.dobInput.click(); // toggles the popper closed, keeps the dialog
-    }
-    await expect(this.dobInput).toHaveValue(dob);
+    const popper = await openMuiPicker(this.page, chooseDate);
+    await pickMuiDate(this.page, popper, dob, this.dobInput);
   }
 
   /**

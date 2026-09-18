@@ -10,7 +10,7 @@ import { runGoal } from "../src/executor/runner";
 
 test(
   "goal-driven create_encounter: new patient -> encounter -> admit -> BNR (preset inpatient_acute_admit)",
-  { tag: "@slow" },
+  { tag: ["@slow", "@registration"] },
   async ({ authedPage }) => {
     const params = await runGoal(authedPage, "create_encounter", {
       preset: "inpatient_acute_admit",

@@ -28,13 +28,16 @@ import type { Page, Locator } from "@playwright/test";
 import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
 import { retryUntil } from "../../src/utils/retry";
+import { PortalRailPage } from "../portal-rail.page";
 
 export class OrderEntryPage {
   private readonly page: Page;
+  private readonly rail: PortalRailPage;
   readonly env: EhrEnvConfig;
 
   constructor(page: Page, env: EhrEnvConfig) {
     this.page = page;
+    this.rail = new PortalRailPage(page);
     this.env = env;
   }
 
@@ -89,10 +92,7 @@ export class OrderEntryPage {
 
   /** Click the rail app button whose hidden <span> carries the label. */
   private async clickRail(label: string): Promise<void> {
-    const link = this.page
-      .locator(".home-non-navbtn-panel a")
-      .filter({ has: this.page.locator("span", { hasText: label }) })
-      .first();
+    const link = this.rail.button(label);
     await expect(link).toBeAttached({ timeout: 15_000 });
     await link.click();
   }

@@ -3,8 +3,8 @@
 // report the result row. READ-ONLY: nothing is opened or posted; use it for
 // MRN/existence checks and to resolve a patient's name from its MRN.
 
-import type { FlowDefinition } from "../src/types/flow";
-import { lookupAccountStep } from "../steps/charge/lookup-account.step";
+import type { FlowDefinition } from "../../src/types/flow";
+import { lookupAccountStep } from "../../steps/charge/lookup-account.step";
 
 export const LookupAccountFlow: FlowDefinition = {
   goal: "lookup_account",

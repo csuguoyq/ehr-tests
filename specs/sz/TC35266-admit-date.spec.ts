@@ -25,7 +25,7 @@ const fmt = (d: Date) => `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFu
 
 test(
   "TC35266: Planned encounter -> Admit -> Patient Control census shows the Admit Date",
-  { tag: "@SZ35266" },
+  { tag: ["@SZ35266", "@registration"] },
   async ({ authedPage }) => {
     const lastName = generateLastName();
     const ssn = generateSsn();

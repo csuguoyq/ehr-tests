@@ -35,6 +35,7 @@
 
 import { expect, type Locator, type Page } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
+import { PortalRailPage } from "../portal-rail.page";
 
 export interface WorklistRow {
   /** Raw trimmed cell texts, grid order (first cell = selection checkbox). */
@@ -46,25 +47,20 @@ export interface WorklistRow {
 
 export class WorklistsPage {
   private readonly page: Page;
+  private readonly rail: PortalRailPage;
   readonly env: EhrEnvConfig;
 
   constructor(page: Page, env: EhrEnvConfig) {
     this.page = page;
+    this.rail = new PortalRailPage(page);
     this.env = env;
-  }
-
-  private railButton(label: string): Locator {
-    return this.page
-      .locator(".home-non-navbtn-panel a")
-      .filter({ has: this.page.locator("span", { hasText: label }) })
-      .first();
   }
 
   /** Portal rail → WORKLIST → directory grid (no-op when already inside). */
   async open(): Promise<void> {
     const dirHeader = this.page.getByText("Worklist Name", { exact: true }).first();
     if (await dirHeader.isVisible().catch(() => false)) return;
-    await this.railButton("WORKLIST").click();
+    await this.rail.clickApp("WORKLIST");
     await expect(dirHeader).toBeVisible({ timeout: 30_000 });
   }
 

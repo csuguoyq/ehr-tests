@@ -2,9 +2,9 @@
 // portal, open Registration and create a new patient. Flows only orchestrate;
 // locators live in the Page Objects, parameter defaults in the steps.
 
-import type { FlowDefinition } from "../src/types/flow";
-import { openRegistrationStep } from "../steps/registration/registration-open.step";
-import { createPatientStep } from "../steps/registration/create-patient.step";
+import type { FlowDefinition } from "../../src/types/flow";
+import { openRegistrationStep } from "../../steps/registration/registration-open.step";
+import { createPatientStep } from "../../steps/registration/create-patient.step";
 
 export const CreatePatientFlow: FlowDefinition = {
   goal: "create_patient",

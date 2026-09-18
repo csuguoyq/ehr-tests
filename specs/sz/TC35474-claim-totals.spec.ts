@@ -21,7 +21,7 @@ import { ClaimsPage } from "../../page-objects/charge/claims.page";
 
 test(
   "SZ35474 TC01+TC02: after the void->rebill chain Totals counts only non-Closed claims (host in .env)",
-  { tag: "@slow" },
+  { tag: ["@slow", "@revenue-cycle"] },
   async ({ authedPage }) => {
     test.setTimeout(1_500_000); // full revenue cycle + void + server-side re-billable wait
     const lastName = generateLastName();

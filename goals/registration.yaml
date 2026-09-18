@@ -170,6 +170,7 @@ goals:
     flow: CoverageChangeFlow
     implemented: true   # TC33731 setup chain (fbch34 2026-09-17); reorder + worklist verify are spec-driven per TC step
     params:
+      $group: resume   # mrn/ssn/startAt/skipStages from goals/_shared.yaml
       # TWO different plans so the Insurance Overview has >=2 rows to reorder
       # (the DataGrid hides the drag handles with a single row). planId2 = the
       # box's generic plan (fbch34: plan 9 "Commercial - Generic", payer COMMG),
@@ -184,24 +185,12 @@ goals:
       lastName:
         type: string
         default: null   # optional: pin the new patient's last name (default generated Testbot_<timestamp>)
-      ssn:
-        type: string
-        default: null   # required with startAt (resume): SSN of the existing patient
       firstName:
         type: string
         default: null
       dob:
         type: string
         default: null
-      startAt:
-        type: string
-        default: null   # resume: stage name to re-enter the chain at, reusing an existing patient
-      skipStages:
-        type: string
-        default: null   # resume: comma-separated stage names to skip
-      mrn:
-        type: string
-        default: null   # resume: MRN of the existing patient (preferred search key)
       encounterType:
         type: string
         default: "Inpatient Acute"

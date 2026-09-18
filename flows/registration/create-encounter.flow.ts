@@ -3,8 +3,8 @@
 // create a fresh patient, create the encounter, admit it, and prove the BNR.
 // The orchestration is fully data-driven — see encounter-stages.ts.
 
-import type { FlowDefinition } from "../src/types/flow";
-import { encounterStages, runStages } from "./encounter-stages";
+import type { FlowDefinition } from "../../src/types/flow";
+import { encounterStages, runStages } from "../encounter-stages";
 
 export const CreateEncounterFlow: FlowDefinition = {
   goal: "create_encounter",

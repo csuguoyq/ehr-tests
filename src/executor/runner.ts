@@ -12,7 +12,7 @@ import path from "path";
 import { parse } from "yaml";
 import { loadEhrEnv, type EhrContext, type EhrData } from "../types/ehr-context";
 import { createLogger } from "../utils/logger";
-import type { GoalDefinition, GoalsFile, ResolvedParams } from "../types/goal";
+import type { GoalDefinition, GoalsFile, ParamSchema, ResolvedParams } from "../types/goal";
 import type { FlowDefinition } from "../types/flow";
 import { matchGoal } from "./goal-matcher";
 import { resolveParams } from "./param-resolver";
@@ -32,7 +32,15 @@ const DATA_DIR = path.resolve(__dirname, "../../data");
 /**
  * Load goals from a single yaml file OR a directory of them (goals/*.yaml,
  * one file per domain once the single file outgrows itself — see PROJECT.md
- * "Structure & size thresholds"). Duplicate goal keys across files are rejected loudly.
+ * "Structure & size thresholds"). Duplicate goal keys across files are rejected
+ * loudly.
+ *
+ * Files may also declare top-level `paramGroups:` (a file may contain ONLY
+ * paramGroups, e.g. goals/_shared.yaml). A goal params block referencing
+ * `$group: <name>` is expanded at load time: group keys first, then the
+ * goal's own keys overriding them; the `$group` key itself is removed.
+ * Expansion happens here — not in the resolver — so check-goals and the
+ * runtime see the same expanded schemas.
  */
 export function loadGoals(yamlPath = defaultGoalsPath()): Record<string, GoalDefinition> {
   const files: string[] = [];
@@ -45,11 +53,34 @@ export function loadGoals(yamlPath = defaultGoalsPath()): Record<string, GoalDef
     files.push(yamlPath);
   }
   const goals: Record<string, GoalDefinition> = {};
-  for (const file of files) {
-    const parsed = parse(fs.readFileSync(file, "utf8")) as GoalsFile;
-    if (!parsed?.goals) throw new Error(`invalid goals file: missing "goals" key (${file})`);
-    for (const [key, def] of Object.entries(parsed.goals)) {
+  const paramGroups: Record<string, Record<string, ParamSchema>> = {};
+  const parsedFiles = files.map((file) => ({
+    file,
+    parsed: parse(fs.readFileSync(file, "utf8")) as GoalsFile & {
+      paramGroups?: Record<string, Record<string, ParamSchema>>;
+    },
+  }));
+  for (const { file, parsed } of parsedFiles) {
+    for (const [name, group] of Object.entries(parsed?.paramGroups ?? {})) {
+      if (paramGroups[name]) {
+        throw new Error(`duplicate paramGroup "${name}": ${file} conflicts with a previously loaded goals file`);
+      }
+      paramGroups[name] = group;
+    }
+  }
+  for (const { file, parsed } of parsedFiles) {
+    if (!parsed?.goals && !parsed?.paramGroups) {
+      throw new Error(`invalid goals file: missing "goals" key (${file})`);
+    }
+    for (const [key, def] of Object.entries(parsed.goals ?? {})) {
       if (goals[key]) throw new Error(`duplicate goal "${key}": ${file} conflicts with a previously loaded goals file`);
+      const { $group, ...ownParams } = def.params ?? {};
+      if ($group !== undefined) {
+        if (typeof $group !== "string" || !paramGroups[$group]) {
+          throw new Error(`goal "${key}": unknown paramGroup "${String($group)}" (${file})`);
+        }
+        def.params = { ...paramGroups[$group], ...ownParams } as typeof def.params;
+      }
       goals[key] = { name: key, ...def };
     }
   }

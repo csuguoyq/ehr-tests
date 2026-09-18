@@ -7,18 +7,18 @@
 // (self-pay → no claim, guarantor balance populated) → register insurance →
 // Add Adjustment 0001 "Transfer Patient to Insurance" (full balance).
 
-import type { FlowDefinition } from "../src/types/flow";
-import { openBnrDetailStep } from "../steps/charge/open-bnr-detail.step";
-import { openPatientChartStep } from "../steps/registration/open-patient-chart.step";
-import { dischargeOrderStep } from "../steps/oe/discharge-order.step";
-import { openPatientRegistrationStep } from "../steps/registration/open-patient-registration.step";
-import { dischargeEncounterStep } from "../steps/registration/discharge-encounter.step";
-import { codingCompleteStep } from "../steps/charge/coding-complete.step";
-import { startBillingStep } from "../steps/charge/start-billing.step";
-import { forceBillStep } from "../steps/charge/force-bill.step";
-import { addInsuranceStep } from "../steps/registration/add-insurance.step";
-import { assignInsuranceBnrStep } from "../steps/registration/assign-insurance-bnr.step";
-import { addAdjustmentStep } from "../steps/charge/add-adjustment.step";
+import type { FlowDefinition } from "../../src/types/flow";
+import { openBnrDetailStep } from "../../steps/charge/open-bnr-detail.step";
+import { openPatientChartStep } from "../../steps/registration/open-patient-chart.step";
+import { dischargeOrderStep } from "../../steps/oe/discharge-order.step";
+import { openPatientRegistrationStep } from "../../steps/registration/open-patient-registration.step";
+import { dischargeEncounterStep } from "../../steps/registration/discharge-encounter.step";
+import { codingCompleteStep } from "../../steps/charge/coding-complete.step";
+import { startBillingStep } from "../../steps/charge/start-billing.step";
+import { forceBillStep } from "../../steps/charge/force-bill.step";
+import { addInsuranceStep } from "../../steps/registration/add-insurance.step";
+import { assignInsuranceBnrStep } from "../../steps/registration/assign-insurance-bnr.step";
+import { addAdjustmentStep } from "../../steps/charge/add-adjustment.step";
 
 export const TransferToInsuranceFlow: FlowDefinition = {
   goal: "transfer_to_insurance",

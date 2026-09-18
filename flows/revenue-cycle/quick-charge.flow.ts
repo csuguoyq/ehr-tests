@@ -3,9 +3,9 @@
 // flow run), open its Hospital BNR charges, and post CPT charges via Quick
 // Charge.
 
-import type { FlowDefinition } from "../src/types/flow";
-import { openBnrDetailStep } from "../steps/charge/open-bnr-detail.step";
-import { quickChargeStep } from "../steps/charge/quick-charge.step";
+import type { FlowDefinition } from "../../src/types/flow";
+import { openBnrDetailStep } from "../../steps/charge/open-bnr-detail.step";
+import { quickChargeStep } from "../../steps/charge/quick-charge.step";
 
 export const QuickChargeFlow: FlowDefinition = {
   goal: "quick_charge",

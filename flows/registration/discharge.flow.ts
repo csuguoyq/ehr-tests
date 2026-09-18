@@ -5,11 +5,11 @@
 // Expects the patient to already exist (run create_encounter first, or pass
 // lastName + ssn of an admitted patient).
 
-import type { FlowDefinition } from "../src/types/flow";
-import { openPatientChartStep } from "../steps/registration/open-patient-chart.step";
-import { dischargeOrderStep } from "../steps/oe/discharge-order.step";
-import { openPatientRegistrationStep } from "../steps/registration/open-patient-registration.step";
-import { dischargeEncounterStep } from "../steps/registration/discharge-encounter.step";
+import type { FlowDefinition } from "../../src/types/flow";
+import { openPatientChartStep } from "../../steps/registration/open-patient-chart.step";
+import { dischargeOrderStep } from "../../steps/oe/discharge-order.step";
+import { openPatientRegistrationStep } from "../../steps/registration/open-patient-registration.step";
+import { dischargeEncounterStep } from "../../steps/registration/discharge-encounter.step";
 
 export const DischargeFlow: FlowDefinition = {
   goal: "discharge",

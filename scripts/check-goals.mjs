@@ -85,4 +85,77 @@ for (const file of walkSpecs(path.join(root, "specs"))) {
   }
 }
 console.log(`spec runGoal refs OK (${refCount} literal refs)`);
+
+// 5. goal param semantics — pure-Node assertions ported out of the e2e specs
+// (Slice C4, 2026-09-18): param defaults/overrides and matchGoal hit/entry
+// error belong to the goal registry, not to browser tests.
+const { resolveParams } = require(path.join(root, ".build-drv/src/executor/param-resolver.js"));
+const { loadEhrEnv } = require(path.join(root, ".build-drv/src/types/ehr-context.js"));
+
+// matchGoal: registered phrase hits, unknown phrase fails at entry.
+const byAlias = matchGoal("login", goals);
+if (byAlias.goal.name !== "login") throw new Error("alias 'login' match failed");
+try {
+  matchGoal("totally nonexistent goal xyz", goals);
+  throw new Error("unregistered goal should fail at entry");
+} catch (e) {
+  if (!(e instanceof Error) || !e.message.includes("Unable to match goal")) throw e;
+}
+console.log("matchGoal hit/entry-error OK");
+
+// login: explicit params override env-sourced defaults.
+{
+  const goal = goals["login"];
+  if (!goal) throw new Error("goals.yaml is missing the login goal");
+  if (goal.implemented === false) throw new Error("login should be implemented");
+  const username = loadEhrEnv().username;
+  const resolved = resolveParams(goal, { params: { username } });
+  if (resolved.username !== username) {
+    throw new Error(`explicit username did not take effect: ${JSON.stringify(resolved.username)}`);
+  }
+}
+
+// create_patient: implemented, alias present, no encounter-owned param.
+{
+  const goal = goals["create_patient"];
+  if (!goal) throw new Error("goals.yaml is missing the create_patient goal");
+  if (goal.implemented === false) throw new Error("create_patient should be marked implemented: true");
+  const resolved = resolveParams(goal, {});
+  if (resolved.patientMode !== undefined && resolved.patientMode !== "new") {
+    throw new Error("create_patient must not have patientMode (belongs to create_encounter)");
+  }
+  if (!goal.aliases.includes("create patient")) throw new Error("create_patient is missing the 'create patient' alias");
+}
+
+// claim_to_submitted: chain defaults.
+{
+  const goal = goals["claim_to_submitted"];
+  if (!goal) throw new Error("goals.yaml is missing the claim_to_submitted goal");
+  if (goal.implemented === false) throw new Error("claim_to_submitted should be marked implemented: true");
+  const resolved = resolveParams(goal, {});
+  if (resolved.admit !== true) throw new Error("claim_to_submitted should default to admit: true");
+  if (resolved.waitForBnr !== true) throw new Error("claim_to_submitted should default to waitForBnr: true");
+}
+
+// coverage_change (TC33731): two-plan reorder defaults.
+{
+  const goal = goals["coverage_change"];
+  if (!goal) throw new Error("goals.yaml is missing the coverage_change goal");
+  if (goal.implemented === false) throw new Error("coverage_change should be marked implemented: true");
+  const resolved = resolveParams(goal, {});
+  if (resolved.planId !== "68888") throw new Error("coverage_change should default planId 68888");
+  if (resolved.planId2 !== "Commercial - Generic") throw new Error("coverage_change should default planId2 to the generic plan NAME (2nd plan for the reorder; 1-char plan ID '9' triggers no lookup search)");
+  if (resolved.admit !== true) throw new Error("coverage_change should default to admit: true");
+  if (resolved.waitForBnr !== true) throw new Error("coverage_change should default to waitForBnr: true");
+}
+
+// paramGroups: $group expansion happened at load time (Slice C3).
+for (const g of ["claim_to_submitted", "claim_to_errored", "coverage_change"]) {
+  const params = goals[g].params ?? {};
+  if (params.$group !== undefined) throw new Error(`goal "${g}": $group was not expanded by loadGoals`);
+  for (const k of ["mrn", "ssn", "startAt", "skipStages"]) {
+    if (!params[k]) throw new Error(`goal "${g}": resume group key "${k}" missing after expansion`);
+  }
+}
+console.log("goal param semantics OK");
 console.log("check-goals: all consistency checks passed");

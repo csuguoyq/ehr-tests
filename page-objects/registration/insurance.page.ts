@@ -12,6 +12,7 @@
 
 import { expect, type Page, type Locator } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
+import { pickMuiDate, openMuiPicker } from "../../src/utils/mui-date";
 
 export class InsurancePage {
   private readonly page: Page;
@@ -344,47 +345,17 @@ export class InsurancePage {
 
   /**
    * Pick the effective date in the reorder dialog (`date` = MM/DD/YYYY).
-   * Same MUI Pickers path as patient-create pickDob: Choose date → year →
-   * month → day (the day click commits on fbch34).
+   * Dialog/input stay PO-owned; the year → month → day ladder is the shared
+   * `pickMuiDate` (src/utils/mui-date.ts).
    */
   async setReorderEffectiveDate(date: string): Promise<void> {
     const dlg = this.reorderDialog();
     const input = dlg.locator("input").first();
-    const [mm, dd, yyyy] = date.split("/").map((p) => String(Number(p)));
-    await dlg.locator('button[aria-label*="Choose date"]').first().click();
-    const popper = this.page.locator(".MuiPickersLayout-root").last();
-    await expect(popper).toBeVisible();
-
-    const yearOption = popper.getByText(yyyy, { exact: true }).first();
-    if (!(await yearOption.isVisible().catch(() => false))) {
-      const toYearView = popper.locator('button[aria-label*="switch to year view"]');
-      if (await toYearView.isVisible().catch(() => false)) await toYearView.click();
-    }
-    await popper.getByText(yyyy, { exact: true }).first().click();
-
-    const header = popper.locator(".MuiPickersCalendarHeader-root");
-    const monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
-    ];
-    for (let i = 0; i < 12; i++) {
-      const headerText = await header.innerText();
-      if (headerText.includes(monthNames[Number(mm) - 1])) break;
-      const want = Number(mm);
-      const cur = monthNames.findIndex((m) => headerText.includes(m)) + 1;
-      await popper
-        .getByRole("button", { name: cur < want ? "Next month" : "Previous month" })
-        .click();
-    }
-
-    await popper.locator("button").filter({ hasText: new RegExp(`^${dd}$`) }).first().click();
-    const okButton = popper.getByRole("button", { name: "OK", exact: true });
-    if (await okButton.isVisible().catch(() => false)) {
-      await okButton.click();
-    } else if (await popper.isVisible().catch(() => false)) {
-      await input.click();
-    }
-    await expect(input).toHaveValue(date);
+    const popper = await openMuiPicker(
+      this.page,
+      dlg.locator('button[aria-label*="Choose date"]').first()
+    );
+    await pickMuiDate(this.page, popper, date, input);
   }
 
   /** Confirm the reorder (dialog OK = "Confirm Reorder"). */

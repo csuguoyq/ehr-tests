@@ -8,18 +8,18 @@
 // "Claim Edits"). No submitClaimStep: a submitted claim would destroy the
 // very state the TC verifies.
 
-import type { FlowDefinition } from "../src/types/flow";
-import type { Stage } from "./encounter-stages";
-import { encounterStages } from "./encounter-stages";
-import { openBnrDetailStep } from "../steps/charge/open-bnr-detail.step";
-import { quickChargeStep } from "../steps/charge/quick-charge.step";
-import { codingCompleteStep } from "../steps/charge/coding-complete.step";
-import { openPatientChartStep } from "../steps/registration/open-patient-chart.step";
-import { dischargeOrderStep } from "../steps/oe/discharge-order.step";
-import { openPatientRegistrationStep } from "../steps/registration/open-patient-registration.step";
-import { dischargeEncounterStep } from "../steps/registration/discharge-encounter.step";
-import { startBillingStep } from "../steps/charge/start-billing.step";
-import { forceBillStep } from "../steps/charge/force-bill.step";
+import type { FlowDefinition } from "../../src/types/flow";
+import type { Stage } from "../encounter-stages";
+import { encounterStages } from "../encounter-stages";
+import { openBnrDetailStep } from "../../steps/charge/open-bnr-detail.step";
+import { quickChargeStep } from "../../steps/charge/quick-charge.step";
+import { codingCompleteStep } from "../../steps/charge/coding-complete.step";
+import { openPatientChartStep } from "../../steps/registration/open-patient-chart.step";
+import { dischargeOrderStep } from "../../steps/oe/discharge-order.step";
+import { openPatientRegistrationStep } from "../../steps/registration/open-patient-registration.step";
+import { dischargeEncounterStep } from "../../steps/registration/discharge-encounter.step";
+import { startBillingStep } from "../../steps/charge/start-billing.step";
+import { forceBillStep } from "../../steps/charge/force-bill.step";
 
 const claimToErroredStages: Stage[] = [
   ...encounterStages,

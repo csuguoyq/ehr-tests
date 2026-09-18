@@ -2,9 +2,9 @@
 // (open via lookup first), Billing tab → Insurance Claims → Submit (or Force
 // Submit with reason when the claim is Errored).
 
-import type { FlowDefinition } from "../src/types/flow";
-import { openBnrDetailStep } from "../steps/charge/open-bnr-detail.step";
-import { submitClaimStep } from "../steps/charge/submit-claim.step";
+import type { FlowDefinition } from "../../src/types/flow";
+import { openBnrDetailStep } from "../../steps/charge/open-bnr-detail.step";
+import { submitClaimStep } from "../../steps/charge/submit-claim.step";
 
 export const SubmitClaimFlow: FlowDefinition = {
   goal: "submit_claim",

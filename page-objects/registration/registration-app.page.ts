@@ -8,23 +8,25 @@
 import type { Page, Locator } from "@playwright/test";
 import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
+import { PortalRailPage } from "../portal-rail.page";
 
 export class RegistrationAppPage {
   private readonly page: Page;
+  private readonly rail: PortalRailPage;
   readonly env: EhrEnvConfig;
 
-  readonly railButton: (label: string) => Locator;
   readonly createNewPatientButton: Locator;
 
   constructor(page: Page, env: EhrEnvConfig) {
     this.page = page;
+    this.rail = new PortalRailPage(page);
     this.env = env;
-    this.railButton = (label: string) =>
-      page
-        .locator(".home-non-navbtn-panel a")
-        .filter({ has: page.locator("span", { hasText: label }) })
-        .first();
     this.createNewPatientButton = page.getByTestId("patient-search-create-new-pat-btn");
+  }
+
+  /** Rail button for a label (delegates to the shared PortalRailPage). */
+  railButton(label: string): Locator {
+    return this.rail.button(label);
   }
 
   /** Click the rail app button and wait for the Registration search screen.

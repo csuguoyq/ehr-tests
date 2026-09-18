@@ -11,9 +11,11 @@
 import type { Page, Locator } from "@playwright/test";
 import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
+import { PortalRailPage } from "../portal-rail.page";
 
 export class AccountLookupPage {
   private readonly page: Page;
+  private readonly rail: PortalRailPage;
   readonly env: EhrEnvConfig;
 
   readonly searchInput: Locator;
@@ -21,6 +23,7 @@ export class AccountLookupPage {
 
   constructor(page: Page, env: EhrEnvConfig) {
     this.page = page;
+    this.rail = new PortalRailPage(page);
     this.env = env;
     this.searchInput = page.locator('input[placeholder="Search by BNR, MRN, etc."]');
     this.lookupHeading = page.getByRole("heading", { name: "Account Lookup" });
@@ -28,7 +31,7 @@ export class AccountLookupPage {
 
   /** Click the rail app button; the portal must already be logged in. */
   async openFromRail(label = "Charge Services"): Promise<void> {
-    await page_railClick(this.page, label);
+    await this.rail.clickApp(label);
     await expect(this.lookupHeading).toBeVisible({ timeout: 30_000 });
   }
 
@@ -77,13 +80,4 @@ export class AccountLookupPage {
     await expect(cells.first()).toBeVisible({ timeout: 20_000 });
     return (await cells.allTextContents()).map((c) => c.trim()).filter(Boolean);
   }
-}
-
-/** Shared rail click (kept tiny; Registration page object has its own). */
-async function page_railClick(page: Page, label: string): Promise<void> {
-  await page
-    .locator(".home-non-navbtn-panel a")
-    .filter({ has: page.locator("span", { hasText: label }) })
-    .first()
-    .click();
 }

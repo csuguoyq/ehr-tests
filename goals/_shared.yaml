@@ -1,0 +1,21 @@
+# goals/_shared.yaml — cross-goal parameter groups (Slice C3, 2026-09-18).
+# Referenced from a goal params block with `$group: <name>`; the loader
+# (src/executor/runner.ts loadGoals) expands it at load time — group keys
+# first, then the goal's own keys overriding them.
+paramGroups:
+  # Resume keys for the long encounter/billing chains: re-enter an existing
+  # patient's chain at a stage instead of re-creating data (same contract in
+  # claim_to_submitted / claim_to_errored / coverage_change).
+  resume:
+    mrn:
+      type: string
+      default: null   # resume: MRN of the existing patient (preferred search key)
+    ssn:
+      type: string
+      default: null   # resume: SSN of the existing patient (required without mrn)
+    startAt:
+      type: string
+      default: null   # resume: stage name to re-enter the chain at, reusing an existing patient
+    skipStages:
+      type: string
+      default: null   # resume: comma-separated stage names to skip

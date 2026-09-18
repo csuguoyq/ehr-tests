@@ -2,8 +2,8 @@
 // session (webtoken) is established. Flows only orchestrate; the locator
 // knowledge lives in the LoginPage, the parameter handling in the step.
 
-import type { FlowDefinition } from "../src/types/flow";
-import { loginStep } from "../steps/auth/login.step";
+import type { FlowDefinition } from "../../src/types/flow";
+import { loginStep } from "../../steps/auth/login.step";
 
 export const LoginFlow: FlowDefinition = {
   goal: "login",

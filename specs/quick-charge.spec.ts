@@ -10,7 +10,7 @@ import { generateLastName } from "../steps/registration/patient-data";
 
 test(
   "goal-driven quick_charge: new patient -> Quick Charge 96372+96374 x10 -> In Process",
-  { tag: "@slow" },
+  { tag: ["@slow", "@revenue-cycle"] },
   async ({ authedPage }) => {
     const lastName = generateLastName();
     await runGoal(authedPage, "create_encounter", {

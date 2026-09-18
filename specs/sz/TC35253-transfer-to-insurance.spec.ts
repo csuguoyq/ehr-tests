@@ -24,7 +24,7 @@ import { ClaimsPage } from "../../page-objects/charge/claims.page";
 
 test(
   "SZ35253 T1+T2: after the 0001 transfer the Guarantor Balance is zero and an insurance claim exists (host in .env)",
-  { tag: "@slow" },
+  { tag: ["@slow", "@revenue-cycle"] },
   async ({ authedPage }) => {
     test.setTimeout(900_000); // discharge → bill → insurance → adjustment
     const lastName = generateLastName();

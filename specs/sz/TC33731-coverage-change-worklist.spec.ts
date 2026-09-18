@@ -40,8 +40,7 @@
 //   npx playwright test specs/sz/TC33731-coverage-change-worklist.spec.ts
 
 import { test, expect } from "../../fixtures/auth.fixture";
-import { runGoal, createEhrContext, loadGoals } from "../../src/executor/runner";
-import { resolveParams } from "../../src/executor/param-resolver";
+import { runGoal, createEhrContext } from "../../src/executor/runner";
 import { generateLastName } from "../../steps/registration/patient-data";
 import { runShellStep } from "../../steps/server/shell.step";
 import { openPatientChartStep } from "../../steps/registration/open-patient-chart.step";
@@ -84,7 +83,7 @@ function patientParams(p: RunPatient): Record<string, string> {
 
 test(
   "TC33731: Coverage Change Worklist considers the effective date of insurance priorities (host in .env)",
-  { tag: "@SZ33731" },
+  { tag: ["@SZ33731", "@registration"] },
   async ({ authedPage }) => {
     test.setTimeout(1_500_000);
     const ctx = createEhrContext(authedPage);
@@ -174,17 +173,5 @@ test(
   }
 );
 
-// No browser fixture: pure Node check that the new goal is registered and
-// resolves (same gate as the claim-to-errored spec).
-test("goal schema: coverage_change is implemented and default params resolve", async () => {
-  const goals = loadGoals();
-  const goal = goals["coverage_change"];
-  if (!goal) throw new Error("goals.yaml is missing the coverage_change goal");
-  if (goal.implemented === false) throw new Error("coverage_change should be marked implemented: true");
-
-  const resolved = resolveParams(goal, {});
-  if (resolved.planId !== "68888") throw new Error("coverage_change should default planId 68888");
-  if (resolved.planId2 !== "Commercial - Generic") throw new Error("coverage_change should default planId2 to the generic plan NAME (2nd plan for the reorder; 1-char plan ID '9' triggers no lookup search)");
-  if (resolved.admit !== true) throw new Error("coverage_change should default to admit: true");
-  if (resolved.waitForBnr !== true) throw new Error("coverage_change should default to waitForBnr: true");
-});
+// Goal-param unit checks moved to scripts/check-goals.mjs section
+// "goal param semantics" (Slice C4, 2026-09-18).

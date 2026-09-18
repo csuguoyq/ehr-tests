@@ -3,12 +3,12 @@
 // the original → Void/Cancel → new claim chain that TC35474 (SZ35474) asserts
 // against. Identity comes from params (mrn/patientName) or ctx.scratch.
 
-import type { FlowDefinition } from "../src/types/flow";
-import { openBnrDetailStep } from "../steps/charge/open-bnr-detail.step";
-import { voidClaimStep } from "../steps/charge/void-claim.step";
-import { startBillingStep } from "../steps/charge/start-billing.step";
-import { forceBillStep } from "../steps/charge/force-bill.step";
-import { submitClaimStep } from "../steps/charge/submit-claim.step";
+import type { FlowDefinition } from "../../src/types/flow";
+import { openBnrDetailStep } from "../../steps/charge/open-bnr-detail.step";
+import { voidClaimStep } from "../../steps/charge/void-claim.step";
+import { startBillingStep } from "../../steps/charge/start-billing.step";
+import { forceBillStep } from "../../steps/charge/force-bill.step";
+import { submitClaimStep } from "../../steps/charge/submit-claim.step";
 
 export const VoidClaimRebillFlow: FlowDefinition = {
   goal: "void_claim_rebill",
