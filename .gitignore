@@ -6,3 +6,4 @@ playwright-report/
 .build-drv/
 recordings/
 .zcode/
+.workbuddy/

@@ -493,6 +493,16 @@ claim_to_submitted 修复后端到端 PASS。对工作区 09-16 未提交修复�
 - **修复**：`WorklistsPage.completeItem` 由「勾首行 checkbox」改为「点 grid 头部 **Select all rows** checkbox（MUI `checkboxSelection`，此时 grid 已被 search 过滤，全选 = 选中全部匹配行）→ 单个 Complete 对话框一次完成全部」。源码佐证：`Complete.tsx handleComplete` 把所有 checked 行的 id join 后一次 `updateWLAccount` POST（一个 Reason 覆盖全部，成功 toast "Account(s) Sucessfully Completed"）。`readRows` 同步加 BNR 锚定 fallback——header-count 对齐在该 grid 失效（select-all 表头 cell 不是 `.MuiDataGrid-cell` 且数据行多一个 cell，shift 落到 -1，此前 patientName/MRN 读空）。
 - **执行记录**：re-run 2/2 PASS（4.3 min，headed + slow-mo，patient A Testbot_2609180900A bnr 1001650345465，encounter 1650345465；box today=09/17/2026）。TC1+TC2-6+TC9-11 端到端 PASS（discharge 后第二次 reorder 的 item 经 5 轮 bounded 轮询出现，在容忍度内）；TC7-8+TC12-13 skipped（blocked，需 past-admit encounter，见已知限制）。
 
+### Slice A 代码债快修（2026-09-18，计划见 docs/slice-plan-2026-09-18.md）
+
+- **A1**：`completeItem(searchKey, reason?)` 参数化——传 reason 按文本选，不传选第一个可用 option（跳过 "Select Reason" 占位）；业务默认值 "No further follow-up needed from patient" 从 PO 上移到 coverage-change step 的 `completeReason` 默认值；修正 step 头注（原「reserved; first available」与实现不符）。
+- **A2**：step 增加 `expectRowContains`（捕获后、Complete 前断言首行 cells 含该文本）；TC33731 spec TC10-11 的 ~30 行 inline 轮询+重开+absence 段收口为一次 `coverageChangeWorklistStep` 调用；删只进日志的 `tomorrow`。
+- **A3**：无背书 sleep 收口——worklists `clearSearch` 4000ms 补背书注释（搜索 re-fetch 是 live onChange、无完成信号可轮询）；insurance `ensureOverviewView` 盲 1000ms 改为有界轮询 overviewOnly 可见（≤3s/次）。
+- **A4**：仓库卫生——`.gitignore` 补 `.workbuddy/` 并 `git rm -r --cached`。
+- **A5**：`loadEhrEnv` 无 .env 且无 EHR_HOST 时直接 throw（报错指向 `cp .env.example .env`），不再静默兜底 "fbch34"；EHR_HOST 显式给出时行为不变。
+- **A6**：`drive-ml.js` 改 `require("@playwright/test")`，去掉对传递依赖 `playwright` 的依赖。
+- **执行中发现的新竞态（首次 run TC10-11 失败）**：单 Reorder 的多条 item **异步落地**——第一次 Complete 只覆盖当时可见的 item，re-fetch 后浮出 Worklist Age=0 的新 row，absence 断言失败。修复：step 在 Complete 后增加有界「残留再 Complete」循环（re-open + re-search，最多 3 轮）。复跑 2/2 PASS（4.3 min，fbch34，patient A Testbot_2609181839A bnr 1001650345484），TC6 中循环真实触发一次，修复有效。
+
 ### 阶段 2（create_patient 切片，2026-09-12，fbch34）
 
 - 搜索表单填单个主条件（MRN）即可解锁 Create New Patient 按钮；`sf-mrn-tf` 等 testid 在 MUI 包装 div 上，用内层 `input` fill。

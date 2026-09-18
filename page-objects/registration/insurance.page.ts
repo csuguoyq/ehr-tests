@@ -43,7 +43,12 @@ export class InsurancePage {
       // A lingering dirty flag can raise the Unsaved Changes confirm on the
       // nested tab switch — resolve it so the switch can complete.
       await this.resolveUnsavedChanges().catch(() => undefined);
-      await this.page.waitForTimeout(1000);
+      // Bounded poll for the switch to land (no completion signal from the
+      // nested tab render); ≤3s per attempt, retried once below.
+      for (let waited = 0; waited < 3000; waited += 250) {
+        if (await overviewOnly.isVisible().catch(() => false)) return;
+        await this.page.waitForTimeout(250);
+      }
     }
     await overviewOnly.waitFor({ state: "visible", timeout: 20_000 });
   }

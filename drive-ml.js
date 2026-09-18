@@ -28,7 +28,7 @@
 // Prereq: npx tsc -p tsconfig.build.json     (builds the .build-drv the driver requires)
 // Host/creds from .env. State which host a run used when reporting results.
 
-const { chromium } = require("playwright");
+const { chromium } = require("@playwright/test");
 const fs = require("fs");
 const path = require("path");
 const dotenv = require("dotenv");

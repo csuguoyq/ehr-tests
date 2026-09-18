@@ -10,11 +10,16 @@
 // the rule.rcf files IN35118 deploys.
 //
 // params:
-//   searchKey      (REQUIRED) BNR or patient name to search for
-//   expectCaptured (bool)     true = the BNR must be in the Active grid and
-//                             is then Completed ("Complete it" per TC);
-//                             false = it must NOT be there
-//   completeReason (optional) reserved; the first available Reason is used
+//   searchKey        (REQUIRED) BNR or patient name to search for
+//   expectCaptured   (bool)     true = the BNR must be in the Active grid and
+//                               is then Completed ("Complete it" per TC);
+//                               false = it must NOT be there
+//   completeReason   (optional) Reason text to pick in the Complete dialog;
+//                               defaults to "No further follow-up needed from
+//                               patient"
+//   expectRowContains (optional) after capture and BEFORE completing, assert
+//                               the first captured row contains this text
+//                               (e.g. the discharge date in the row cells)
 
 import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
@@ -27,6 +32,11 @@ export async function coverageChangeWorklistStep(
   const searchKey = typeof params.searchKey === "string" ? params.searchKey : "";
   if (!searchKey) throw new Error("coverage_change_worklist requires params.searchKey (BNR or patient name)");
   const expectCaptured = params.expectCaptured !== false;
+  const completeReason =
+    typeof params.completeReason === "string" && params.completeReason
+      ? params.completeReason
+      : "No further follow-up needed from patient";
+  const expectRowContains = typeof params.expectRowContains === "string" ? params.expectRowContains : "";
 
   const wl = new WorklistsPage(ctx.page, ctx.env);
   ctx.log.step("coverage-change-worklist", `search=${searchKey} expectCaptured=${expectCaptured}`);
@@ -60,15 +70,41 @@ export async function coverageChangeWorklistStep(
     ctx.log.info(
       `captured in Coverage Change worklist: ${match.map((r) => `${r.patientName} BNR=${r.bnr}`).join("; ")}`
     );
-    // TC: "Complete it" — complete the captured item.
-    await wl.completeItem(searchKey);
-    // The completion POSTs to the server, but the grid does NOT auto-refresh
-    // (Complete.tsx sets isRefresh:false after a local update), so the Active
-    // view can still show the just-completed item. Re-open the worklist to
-    // force a fresh server fetch before asserting absence.
-    await wl.open();
-    await wl.openWorklist("Coverage Change");
-    await wl.searchAccount(searchKey);
+    if (expectRowContains) {
+      const first = match[0];
+      if (!first.cells.some((c) => c.includes(expectRowContains))) {
+        throw new Error(
+          `captured row must contain "${expectRowContains}"; row cells: ${JSON.stringify(first.cells)}`
+        );
+      }
+      ctx.log.info(`row cells contain "${expectRowContains}" as expected`);
+    }
+    // TC: "Complete it" — complete the captured item, then re-open and
+    // complete any stragglers: one reorder creates ONE item per changed
+    // insurance record and the per-record rule events land asynchronously,
+    // so an item can surface after the first Complete POSTs (fbch34
+    // 2026-09-18: TC10-11 failed absence with a freshly created Age-0 row).
+    await wl.completeItem(searchKey, completeReason);
+    let allCompleted = false;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      // The grid does not auto-refresh (Complete.tsx isRefresh:false) —
+      // re-open the worklist for a fresh server fetch before re-checking.
+      await wl.open();
+      await wl.openWorklist("Coverage Change");
+      await wl.searchAccount(searchKey);
+      const remaining = await wl.findItems(searchKey);
+      if (!remaining.length) {
+        allCompleted = true;
+        break;
+      }
+      ctx.log.info(
+        `${remaining.length} worklist item(s) still active after Complete (check ${attempt}/3) — completing again`
+      );
+      await wl.completeItem(searchKey, completeReason);
+    }
+    if (!allCompleted) {
+      await wl.searchAccount(searchKey);
+    }
     await wl.expectItemAbsent(searchKey);
     ctx.log.info("worklist item completed (no longer in the Active grid)");
   } else {

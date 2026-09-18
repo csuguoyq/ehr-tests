@@ -89,8 +89,7 @@ test(
     test.setTimeout(1_500_000);
     const ctx = createEhrContext(authedPage);
     const today = boxDate(ctx.env.timezone, 0);
-    const tomorrow = boxDate(ctx.env.timezone, 1);
-    ctx.log.info(`box dates: today=${today} tomorrow=${tomorrow} (tz ${ctx.env.timezone})`);
+    ctx.log.info(`box date: today=${today} (tz ${ctx.env.timezone})`);
 
     // Patient A carries the whole testable flow (TC step 2). (Patient B,
     // TC step 7, is only for the "effective AFTER admit" case — see the skip
@@ -152,39 +151,14 @@ test(
 
     await test.step("TC 10-11 (patient A, discharged): reorder eff = discharge date (today) → captured, row shows discharge date = today — Complete it", async () => {
       await reorderInsurancePrioritiesStep(ctx, { effectiveDate: today });
-      // The worklist step searches + completes; re-search afterwards to
-      // read the row's dates BEFORE completion is not possible from the
-      // step — so run the verify-with-dates inline via the PO.
-      const { WorklistsPage } = await import("../../page-objects/worklists/worklists.page");
-      const wl = new WorklistsPage(ctx.page, ctx.env);
-      await wl.open();
-      await wl.openWorklist("Coverage Change");
-      await wl.searchAccount(patA.bnr as string);
-      // Bounded wait for the rule engine (same tolerance as the step).
-      let rows: Awaited<ReturnType<typeof wl.findItems>> = [];
-      for (let attempt = 1; attempt <= 5; attempt++) {
-        rows = await wl.findItems(patA.bnr as string);
-        if (rows.length) break;
-        ctx.log.info(`discharged-encounter item not visible yet (attempt ${attempt}/5)`);
-        await wl.searchAccount(patA.bnr as string);
-      }
-      expect(rows.length, "discharged-encounter reorder (eff = discharge date) must be captured").toBeGreaterThanOrEqual(1);
-      const row = rows[0];
-      expect(
-        row.cells,
-        `the captured row must show the discharge date (${today}) proving the encounter was discharged today: ${JSON.stringify(row.cells)}`
-      ).toContain(today);
-      await test.info().attach("discharged-row", {
-        body: Buffer.from(JSON.stringify(row, null, 2), "utf8"),
-        contentType: "application/json",
+      // The step searches, asserts the captured row carries the discharge
+      // date (proving the encounter was discharged today), completes the
+      // item and asserts its absence from the Active grid.
+      await coverageChangeWorklistStep(ctx, {
+        searchKey: patA.bnr as string,
+        expectCaptured: true,
+        expectRowContains: today,
       });
-      await wl.completeItem(patA.bnr as string);
-      // Completion POSTs but the grid does not auto-refresh (Complete.tsx
-      // sets isRefresh:false) — re-open the worklist for a fresh server fetch.
-      await wl.open();
-      await wl.openWorklist("Coverage Change");
-      await wl.searchAccount(patA.bnr as string);
-      await wl.expectItemAbsent(patA.bnr as string);
       ctx.log.info("discharged-encounter worklist item completed");
     });
 

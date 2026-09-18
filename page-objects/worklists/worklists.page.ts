@@ -115,6 +115,9 @@ export class WorklistsPage {
     await s.press("Control+a");
     await s.press("Delete");
     if (!query) {
+      // Clearing re-fetches live on the atom change with no completion
+      // signal to poll (waitForSearchSettled has no query to match against),
+      // so wait out the fetch window before the caller reads the grid.
       await this.page.waitForTimeout(4000);
       return;
     }
@@ -220,7 +223,10 @@ export class WorklistsPage {
   }
 
   /**
-   * Select ALL rows matching `searchKey` and Complete them in one dialog.
+   * searchKey and Complete them in one dialog.
+   * @param reason Reason text to pick in the dialog; when omitted the first
+   *   selectable option (skipping the "Select Reason" placeholder) is used.
+   * @param searchKey filter for the rows to select
    *
    * A single priority REORDER changes the InsOrder of BOTH swapped insurance
    * records, so the rule engine creates ONE worklist item per changed record
@@ -232,7 +238,7 @@ export class WorklistsPage {
    * exactly the matching rows; Complete.tsx handleComplete then POSTs all
    * selected ids in one updateWLAccount (one Reason applies to all).
    */
-  async completeItem(searchKey: string): Promise<void> {
+  async completeItem(searchKey: string, reason?: string): Promise<void> {
     await this.searchAccount(searchKey);
     if (!(await this.findItems(searchKey)).length) {
       throw new Error(`no selectable row for "${searchKey}"`);
@@ -265,11 +271,25 @@ export class WorklistsPage {
     if (!autoOpened) {
       await dialog.locator(".MuiSelect-select").first().click();
     }
-    const reasonOption = this.page
-      .getByRole("option", { name: "No further follow-up needed from patient" })
-      .first();
-    await expect(reasonOption, `reason option not listed`).toBeVisible({ timeout: 10_000 });
-    await reasonOption.click();
+    // The auto-opened listbox's first li is the disabled "Select Reason"
+    // placeholder — pick the requested reason by text, or the first real
+    // option when no reason was given (the TC says "Complete it" — any
+    // valid reason works).
+    if (reason) {
+      const wanted = this.page.getByRole("option", { name: reason }).first();
+      await expect(wanted, `reason option "${reason}" not listed`).toBeVisible({ timeout: 10_000 });
+      await wanted.click();
+    } else {
+      const options = this.page.getByRole("option");
+      const count = await options.count();
+      if (count < 1) throw new Error("no reason options rendered in the Complete dialog");
+      const first = options.nth(0);
+      if ((await first.innerText()).trim() === "Select Reason" && count > 1) {
+        await options.nth(1).click();
+      } else {
+        await first.click();
+      }
+    }
     // The dialog's Complete button is a single-line JSX text
     // ("> Complete <") whose RAW text keeps leading/trailing spaces (JSX only
     // trims on newlines), so an anchored hasText regex misses it — match on

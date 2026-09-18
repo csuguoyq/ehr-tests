@@ -8,7 +8,8 @@ import path from "path";
 import dotenv from "dotenv";
 import type { Logger } from "../utils/logger";
 
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+const ENV_FILE_PATH = path.resolve(__dirname, "../../.env");
+const ENV_FILE_LOADED = dotenv.config({ path: ENV_FILE_PATH }).parsed !== undefined;
 
 export interface EhrEnvConfig {
   /** Target box short name, e.g. fbch34. Never copy from a doc example. */
@@ -29,7 +30,19 @@ export interface EhrEnvConfig {
 }
 
 export function loadEhrEnv(overrides?: Partial<EhrEnvConfig>): EhrEnvConfig {
-  const host = overrides?.host || process.env.EHR_HOST || "fbch34";
+  const host = overrides?.host || process.env.EHR_HOST;
+  if (!host) {
+    // No silent fallback: a mistyped/missing env used to default to a
+    // hardcoded box and hit the wrong machine. With no .env file AND no
+    // explicit EHR_HOST there is no target — fail fast with the fix.
+    if (!ENV_FILE_LOADED) {
+      throw new Error(
+        `No EHR environment configured: neither "${ENV_FILE_PATH}" nor EHR_HOST exists. ` +
+          `Run \`cp .env.example .env\` and set EHR_HOST / EHR_USER / EHR_PASS.`
+      );
+    }
+    return loadEhrEnv({ ...overrides, host: "fbch34" });
+  }
   const webframeDir = overrides?.webframeDir || process.env.WEBFRAME_DIR || "webframe";
   return {
     host,
