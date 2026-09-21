@@ -32,7 +32,7 @@ const HEADLESS = process.env.HEADLESS ? process.env.HEADLESS !== "0" : true;
 
 export default defineConfig({
   testDir: "./specs",
-  timeout: 120_000,
+  timeout: 1_800_000,  // 30min — slow-mo headed E2E chains (TC35520 ~4min, TC35474 polls minutes)
   expect: { timeout: 30_000 },
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
