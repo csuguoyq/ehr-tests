@@ -46,6 +46,9 @@ test(
   "TC35520: Scheduling Worklist drawer truncates long patient/procedure names with ellipsis + tooltip",
   { tag: ["@SZ35520", "@scheduling-worklist"] },
   async ({ authedPage }) => {
+    // Two admissions + two referrals + worklist checks: the config default
+    // (120s) only fits fast headless runs; SLOW_MO headed runs need more.
+    test.setTimeout(900_000);
     const ctx = createEhrContext(authedPage);
     const admission = async (lastName: string, firstName: string) => {
       await runGoal(authedPage, "create_encounter", {
