@@ -9,6 +9,7 @@ import type { Page, Locator } from "@playwright/test";
 import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
 import { PortalRailPage } from "../portal-rail.page";
+import { patientTab } from "./patient-tab";
 
 export class RegistrationAppPage {
   private readonly page: Page;
@@ -67,8 +68,8 @@ export class RegistrationAppPage {
       .first();
     await nameLink.waitFor({ state: "visible", timeout: 30_000 });
     await nameLink.click();
-    await this.page
-      .getByRole("tab", { name: `${lastName}, ${firstName}` })
-      .waitFor({ timeout: 20_000 });
+    // patientTab (not exact getByRole name): long patient names truncate the
+    // chart-tab label with an ellipsis (TC35520).
+    await patientTab(this.page, lastName, firstName).first().waitFor({ timeout: 20_000 });
   }
 }

@@ -14,6 +14,7 @@
 | CPOE2 | Order Reconcile、Order Entry/ADT（`ehr/src/OE`） | P0 | 待调研 | 1 | 部分实现 | | 2026-09-15 |
 | Billing | Start Billing、Bill Now、Force Bill、Guarantor Balance、Adjustments | P0 | 待调研 | 0（Billing 动作实现于 Charge Services 节的「Billing (BNR)」页卡，同一 `billing.page.ts`） | 部分实现 | | 2026-09-16 |
 | Insurance Claims | Claim 表格（Submit/Void/Resubmit/Replacement kebab、Totals 行）、Adjustment 弹窗（`ehr/src/Charge/Claim`） | P0 | 待调研 | 1 | 已覆盖 | | 2026-09-16 |
+| Scheduling Worklist | rail "Appointment Management" → Scheduling Worklist（ehr/src/SchedulingWorklist）：Unscheduled Procedures 卡片列表 + View Details 抽屉（PatientHeader/BookingSummary/ellipsis+tooltip，SZ35520 修复面） | P1 | 2（卡片列表 + 详情抽屉同一 `scheduling-worklist.page.ts`） | 1 | 已通过 | | 2026-09-21 |
 | Worklists | portal rail WORKLIST→worklist directory（双击行打开 item view）→item view（Active/Deferred/Completed grid + "Search for Account" + Complete/Defer/Transfer）（`ehr/src/Worklists`） | P1 | 2 | 1（directory + item view 同一 `worklists.page.ts`） | 已覆盖 | | 2026-09-17 |
 
 ## 发现渠道
@@ -39,3 +40,4 @@ MODULES.md 用可读注册名；`page-objects/<dir>`、`steps/<dir>` 用既定�
 | CPOE2 | `oe` | 对应 `ehr/src/OE` |
 | Insurance Claims | `charge`（claims/adjustments PO 与 Billing 同壳） | 2026-09-16 定 |
 | Worklists | `worklists` | 2026-09-17 定（TC33731） |
+| Scheduling Worklist | `scheduling-worklist` | 2026-09-21 定（TC35520） |

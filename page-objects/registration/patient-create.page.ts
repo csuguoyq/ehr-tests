@@ -19,6 +19,7 @@ import type { Page, Locator } from "@playwright/test";
 import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
 import { pickMuiDate, openMuiPicker } from "../../src/utils/mui-date";
+import { patientTab } from "./patient-tab";
 
 export class PatientCreatePage {
   private readonly page: Page;
@@ -27,6 +28,7 @@ export class PatientCreatePage {
   readonly searchMrnInput: Locator;
   readonly createNewPatientButton: Locator;
   readonly dialog: Locator;
+  private readonly filledFields = new Map<string, string>();
   readonly dobInput: Locator;
   readonly createButton: Locator;
 
@@ -54,14 +56,37 @@ export class PatientCreatePage {
 
   async fillTextField(fieldName: string, value: string): Promise<void> {
     const input = this.dialog.locator(`[data-testid="create-patient-${fieldName}-field"] input`);
-    await input.fill(value);
-    const actual = await input.inputValue();
-    // The SSN field renders masked (***-**-1234); its last-4 digits prove the
-    // underlying value landed. Other fields hold the literal value.
-    const ok =
-      actual === value ||
-      (actual.includes("*") && value.replace(/\D/g, "").endsWith(actual.replace(/\D/g, "")));
-    if (!ok) throw new Error(`fill ${fieldName}: expected ${value}, got "${actual}"`);
+    // Typing (not programmatic fill) with a verify-and-retry loop: a React
+    // remount right after the preceding field's fill can leave the mask
+    // component's input replaced, and the typed text lands in the still-
+    // focused previous field (fbch34 2026-09-20, TC35520 patient B).
+    await this.typeAndVerify(input, fieldName, value);
+    // A later field's focus-steal can corrupt an earlier field — re-verify
+    // everything filled so far and repair any field that drifted.
+    for (const [name, val] of this.filledFields) {
+      if (name === fieldName) continue;
+      const prev = this.dialog.locator(`[data-testid="create-patient-${name}-field"] input`);
+      if ((await prev.inputValue().catch(() => "")) !== val) {
+        await this.typeAndVerify(prev, name, val);
+      }
+    }
+    this.filledFields.set(fieldName, value);
+  }
+
+  private async typeAndVerify(input: Locator, fieldName: string, value: string): Promise<void> {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await input.click();
+      await input.fill("");
+      await input.pressSequentially(value, { delay: 10 });
+      const actual = await input.inputValue();
+      // The SSN field renders masked (***-**-1234); its last-4 digits prove the
+      // underlying value landed. Other fields hold the literal value.
+      const ok =
+        actual === value ||
+        (actual.includes("*") && value.replace(/\D/g, "").endsWith(actual.replace(/\D/g, "")));
+      if (ok) return;
+      if (attempt === 3) throw new Error(`fill ${fieldName}: expected ${value}, got "${actual}"`);
+    }
   }
 
   /**
@@ -161,8 +186,6 @@ export class PatientCreatePage {
   /** Success = dialog closed + a patient tab "<last>, <first>" is open. */
   async expectPatientCreated(lastName: string, firstName: string): Promise<void> {
     await expect(this.dialog).toBeHidden({ timeout: 20_000 });
-    await expect(
-      this.page.getByRole("tab", { name: `${lastName}, ${firstName}` })
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(patientTab(this.page, lastName, firstName)).toBeVisible({ timeout: 20_000 });
   }
 }

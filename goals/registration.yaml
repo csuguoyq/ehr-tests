@@ -203,3 +203,67 @@ goals:
       bnrTimeoutMs:
         type: number
         default: 180000
+
+  create_referral:
+    aliases: ["create referral", "procedure referral"]
+    flow: CreateReferralFlow
+    implemented: true
+    params:
+      ssn:
+        type: string
+        default: null   # falls back to scratch patient ssn
+      lastName:
+        type: string
+        default: null
+      firstName:
+        type: string
+        default: null
+      procedureKeyword:
+        type: string
+        default: "Ablation"      # search text in the Procedure dropdown
+      procedureMatch:
+        type: string
+        default: "30802"         # option must contain this (CPT code)
+      laterality:
+        type: string
+        enum: ["Left", "Right", "Bilateral", "N/A"]
+        default: "Bilateral"
+      dxKeyword:
+        type: string
+        default: "pain"
+      dxMatch:
+        type: string
+        default: "T65.6X1D"
+      cptKeyword:
+        type: string
+        default: "Manual therapy"
+      cptMatch:
+        type: string
+        default: "97140"
+      providerNpi:
+        type: string
+        default: "3971396437"    # dstest (MD)
+      surgeonNpi:
+        type: string
+        default: "3971396437"
+      serviceType:
+        type: string
+        default: "Procedure/Surgery"
+      facility:
+        type: string
+        default: "San Diego Medical Center"
+      clinicDept:
+        type: string
+        default: "Cove Community Hospital"
+      location:
+        type: string
+        default: "San Diego - Cove Community Hospital"
+      encounterType:
+        type: string
+        default: "Inpatient Acute"
+      requestedDatetime:
+        type: string
+        default: null   # MM/DD/YYYY HH:mm; defaults to tomorrow 08:00
+      procedureReason:
+        type: string
+        default: "Automated referral"

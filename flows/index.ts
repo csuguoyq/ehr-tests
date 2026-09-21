@@ -24,6 +24,7 @@ import { TransferToInsuranceFlow } from "./revenue-cycle/transfer-to-insurance.f
 import { OpenBnrDetailFlow } from "./revenue-cycle/open-bnr-detail.flow";
 import { DischargeFlow } from "./registration/discharge.flow";
 import { CoverageChangeFlow } from "./registration/coverage-change.flow";
+import { CreateReferralFlow } from "./registration/create-referral.flow";
 
 export const FLOWS: Record<string, FlowDefinition> = {
   login: LoginFlow,
@@ -42,4 +43,5 @@ export const FLOWS: Record<string, FlowDefinition> = {
   open_bnr_detail: OpenBnrDetailFlow,
   discharge: DischargeFlow,
   coverage_change: CoverageChangeFlow,
+  create_referral: CreateReferralFlow,
 };

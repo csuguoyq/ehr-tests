@@ -6,6 +6,7 @@ import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { PatientCreatePage } from "../../page-objects/registration/patient-create.page";
 import { generateDob, generateLastName, generateSsn } from "./patient-data";
+import { patientTab } from "../../page-objects/registration/patient-tab";
 import { str } from "../../src/utils/params";
 
 
@@ -55,8 +56,7 @@ export async function createPatientStep(ctx: EhrContext, params: ResolvedParams)
       // "open" can be a late success (the main dialog still finishing its
       // close after a force-create, fbch34 2026-09-17 TC35118 run 1) — re-
       // check the created-patient condition before re-submitting.
-      const tabVisible = await ctx.page
-        .getByRole("tab", { name: `${patient.lastName}, ${patient.firstName}` })
+      const tabVisible = await patientTab(ctx.page, patient.lastName, patient.firstName)
         .isVisible()
         .catch(() => false);
       if (tabVisible) break;
