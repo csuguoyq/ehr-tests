@@ -55,8 +55,19 @@ export async function createReferralStep(ctx: EhrContext, params: ResolvedParams
   const app = new RegistrationAppPage(ctx.page, ctx.env);
   ctx.log.step("create-referral", `patient=${lastName} procedure=${data.procedureMatch}`);
   await app.open();
-  await app.searchPatient({ ssn });
-  await app.openPatientResult(lastName, firstName);
+  // The late duplicate check kicks the chart back to a cleared search screen
+  // at unpredictable moments — retry search + open until the chart is up.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await app.searchPatient({ ssn });
+      await app.openPatientResult(lastName, firstName);
+      break;
+    } catch (e) {
+      if (attempt === 3) throw e;
+      ctx.log.warn(`search/open swallowed (attempt ${attempt}) — retrying`);
+      await app.open();
+    }
+  }
 
   const tabs = new PatientTabsPage(ctx.page, ctx.env);
   await tabs.openSubTab("Referral");

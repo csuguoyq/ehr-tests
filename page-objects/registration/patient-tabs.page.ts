@@ -27,6 +27,26 @@ export class PatientTabsPage {
   }
 
   /**
+   * Boundedly dismiss the async "WARNING: POTENTIAL DUPLICATE(S) DETECTED"
+   * dialog (guarantor/patient duplicate check finishing late) if it is up —
+   * it is informational and overlays the whole page (fbch34 2026-09-21,
+   * TC35520: same-name test patients accumulate on the box).
+   */
+  async dismissDuplicateWarningIfPresent(): Promise<void> {
+    const dialog = this.page
+      .locator("[role=dialog], .MuiDialog-root")
+      .filter({ hasText: /POTENTIAL DUPLICATE/i })
+      .first();
+    console.log(`[probe-dup] visible=${await dialog.isVisible().catch((e) => "err")} count=${await this.page.locator("[role=dialog]").count()}`);
+    for (let attempt = 0; attempt < 5 && (await dialog.isVisible().catch(() => false)); attempt++) {
+      console.log(`[probe-dup] attempt ${attempt}: closeBtns=${await dialog.getByRole("button", { name: "close" }).count()}`);
+      await dialog.getByRole("button", { name: "close" }).first().click().catch((e) => console.log(`[probe-dup] click err: ${e.message?.slice(0, 150)}`));
+      await this.page.waitForTimeout(1_000);
+      console.log(`[probe-dup] after click visible=${await dialog.isVisible().catch((e) => "err")}`);
+    }
+  }
+
+  /**
    * Navigate to a sub-tab, resolving an "Unsaved Changes" guard dialog if the
    * current form is dirty. The guard is raised ASYNCHRONOUSLY by the pending
    * navigation and is a full-page overlay that UNMOUNTS the tab bar — so the
@@ -43,6 +63,9 @@ export class PatientTabsPage {
       .first();
     for (let attempt = 0; attempt < 3; attempt++) {
       if ((await tab.getAttribute("aria-selected").catch(() => null)) === "true") return;
+      // The async duplicate-check warning can pop at any moment and overlay
+      // the tab bar — clear it before every (re)click.
+      await this.dismissDuplicateWarningIfPresent();
       await tab.click().catch(() => {});
       // Wait (bounded) for the guard to appear; a clean switch shows no dialog.
       let shown = false;
@@ -64,6 +87,15 @@ export class PatientTabsPage {
         continue;
       }
       if ((await tab.getAttribute("aria-selected").catch(() => null)) === "true") return;
+    }
+    // The duplicate-check warning pops asynchronously (can re-pop per record);
+    // keep clearing it while polling for the tab to become active.
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline) {
+      await this.dismissDuplicateWarningIfPresent();
+      if ((await tab.getAttribute("aria-selected").catch(() => null)) === "true") return;
+      await tab.click().catch(() => {});
+      await this.page.waitForTimeout(2_000);
     }
     await expect(tab).toHaveAttribute("aria-selected", "true", { timeout: 15_000 });
   }

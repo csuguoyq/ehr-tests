@@ -4,6 +4,7 @@
 // verified on fbch34 2026-09-16.
 
 import type { Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 import type { EhrEnvConfig } from "../../src/types/ehr-context";
 
 export class GuarantorsPage {
@@ -33,5 +34,20 @@ export class GuarantorsPage {
     await dialog.getByText("+ Create New Guarantor").click();
 
     await this.page.getByTestId("guarantor-form-save-and-close-button").click();
+
+    // The save can be intercepted by the async duplicate check:
+    // "WARNING: POTENTIAL DUPLICATE(S) DETECTED" with Create New Guarantor
+    // Record / Use Existing Record / Cancel. The X close CANCELS the save and
+    // leaves the form dirty (every later sub-tab click then hits the Unsaved
+    // Changes guard, fbch34 2026-09-21) — confirm creation instead, which
+    // completes the save and closes the form.
+    const dup = this.page
+      .locator("[role=dialog], .MuiDialog-root")
+      .filter({ hasText: /POTENTIAL DUPLICATE/i })
+      .first();
+    const confirm = dup.getByRole("button", { name: /Create New Guarantor Record/i });
+    await confirm.click({ timeout: 10_000 }).catch(() => {});
+    // Either way the guarantor form closes after a successful save.
+    await expect(dup).toBeHidden({ timeout: 15_000 }).catch(() => {});
   }
 }

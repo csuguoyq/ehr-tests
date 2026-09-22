@@ -6,6 +6,7 @@ import type { EhrContext } from "../../src/types/ehr-context";
 import type { ResolvedParams } from "../../src/types/goal";
 import { PatientTabsPage } from "../../page-objects/registration/patient-tabs.page";
 import { InsurancePage } from "../../page-objects/registration/insurance.page";
+import { RegistrationAppPage } from "../../page-objects/registration/registration-app.page";
 import { str } from "../../src/utils/params";
 
 
@@ -15,7 +16,25 @@ export async function addInsuranceStep(ctx: EhrContext, params: ResolvedParams):
   const insurance = new InsurancePage(ctx.page, ctx.env);
   ctx.log.step("add-insurance", `Insurance tab → Add Insurance (plan ${planQuery}) → Save`);
 
-  await tabs.openSubTab("Insurance");
+  // bounded-retry variant: the sub-tab click is occasionally swallowed while
+  // the chart finishes rendering (fbch34 2026-09-21, TC35520 run)
+  // The app's late duplicate check can KICK BACK to the Registration search
+  // screen (SSN prefilled, created patient in the results) after the chart
+  // was opened — reopen the patient from the results before switching tabs
+  // (fbch34 2026-09-21, TC35520: same-name test patients accumulate).
+  const tabs2 = new PatientTabsPage(ctx.page, ctx.env);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (await tabs.subTab("Insurance").isVisible().catch(() => false)) break;
+    await ctx.page.waitForTimeout(2_000);
+    if (await ctx.page.locator('[data-testid^="cci-patient-name-"]').first().isVisible().catch(() => false)) {
+      await ctx.page.locator('[data-testid^="cci-patient-name-"]').first().click();
+      await ctx.page.waitForTimeout(2_500);
+    }
+    await tabs2.dismissDuplicateWarningIfPresent();
+  }
+
+  await tabs.dismissDuplicateWarningIfPresent();
+  await tabs.openSubTabResolvingUnsaved("Insurance");
   await insurance.openLookupDialog();
   await insurance.lookupAndPickFirstPlan(planQuery);
 

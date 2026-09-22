@@ -14,5 +14,7 @@ export async function addGuarantorSelfStep(ctx: EhrContext, _params: ResolvedPar
 
   await tabs.openSubTab("Guarantors");
   await guarantors.addSelf();
+  // the duplicate check completes async and its warning overlays the page
+  await tabs.dismissDuplicateWarningIfPresent();
   ctx.log.info("self guarantor saved");
 }

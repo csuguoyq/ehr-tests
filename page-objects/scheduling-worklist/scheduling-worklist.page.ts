@@ -87,9 +87,15 @@ export class SchedulingWorklistPage {
       .first();
   }
 
-  /** Patient-name element in the drawer header (aria-label = full name). */
-  patientName(fullName: string): Locator {
-    return this.drawer.locator(`[aria-label="${fullName}"]`).first();
+  /**
+   * Patient-name element in the drawer header (aria-label = the full display
+   * name, which may append middle names — hence a prefix match on
+   * "Last, First").
+   */
+  patientName(lastName: string, firstName: string): Locator {
+    return this.drawer
+      .locator(`[aria-label^="${lastName}, ${firstName}"]`)
+      .first();
   }
 
   async closeDrawer(): Promise<void> {

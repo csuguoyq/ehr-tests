@@ -89,6 +89,9 @@ goals:
       firstName:
         type: string
         default: null   # defaults to "Auto" in existing mode
+      middleName:
+        type: string
+        default: null   # optional; empty = leave the Middle Name field blank
       ssn:
         type: string
         default: null

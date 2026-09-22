@@ -13,6 +13,7 @@ import { str } from "../../src/utils/params";
 export async function createPatientStep(ctx: EhrContext, params: ResolvedParams): Promise<void> {
   const patient = {
     firstName: str(params.firstName, "Auto"),
+    middleName: str(params.middleName, ""),
     lastName: str(params.lastName, generateLastName()),
     ssn: str(params.ssn, generateSsn()),
     dob: str(params.dob, generateDob()),
@@ -31,6 +32,7 @@ export async function createPatientStep(ctx: EhrContext, params: ResolvedParams)
   await create.fillSearchMrn(patient.searchMrn);
   await create.openCreateDialog();
   await create.fillTextField("firstName", patient.firstName);
+  if (patient.middleName) await create.fillTextField("middleName", patient.middleName);
   await create.fillTextField("lastName", patient.lastName);
   await create.fillTextField("ssn", patient.ssn);
   await create.fillTextField("address1", patient.address1);

@@ -60,20 +60,33 @@ export class PatientCreatePage {
     // remount right after the preceding field's fill can leave the mask
     // component's input replaced, and the typed text lands in the still-
     // focused previous field (fbch34 2026-09-20, TC35520 patient B).
-    await this.typeAndVerify(input, fieldName, value);
+    const accepted = await this.typeAndVerify(input, fieldName, value);
     // A later field's focus-steal can corrupt an earlier field — re-verify
     // everything filled so far and repair any field that drifted.
     for (const [name, val] of this.filledFields) {
       if (name === fieldName) continue;
       const prev = this.dialog.locator(`[data-testid="create-patient-${name}-field"] input`);
-      if ((await prev.inputValue().catch(() => "")) !== val) {
+      if (!(await this.matches(prev, val))) {
         await this.typeAndVerify(prev, name, val);
       }
     }
-    this.filledFields.set(fieldName, value);
+    // Record what the field actually accepted — an app-side maxlength may
+    // have truncated it (Middle Name caps at 35, TC35520); re-verification
+    // must compare against the accepted value, not the requested one.
+    this.filledFields.set(fieldName, accepted);
   }
 
-  private async typeAndVerify(input: Locator, fieldName: string, value: string): Promise<void> {
+  /** Accepts the literal value or its masked render (SSN: ***-**-1234). */
+  private async matches(input: Locator, value: string): Promise<boolean> {
+    const actual = await input.inputValue().catch(() => "");
+    return (
+      actual === value ||
+      (actual.includes("*") && value.replace(/\D/g, "").endsWith(actual.replace(/\D/g, "")))
+    );
+  }
+
+  /** Returns the value the field actually accepted (may be maxlength-truncated). */
+  private async typeAndVerify(input: Locator, fieldName: string, value: string): Promise<string> {
     for (let attempt = 1; attempt <= 3; attempt++) {
       await input.click();
       await input.fill("");
@@ -84,9 +97,14 @@ export class PatientCreatePage {
       const ok =
         actual === value ||
         (actual.includes("*") && value.replace(/\D/g, "").endsWith(actual.replace(/\D/g, "")));
-      if (ok) return;
+      if (ok) return actual;
+      // App-side maxlength truncation (e.g. Middle Name caps at 35 chars,
+      // TC35520): a pure prefix of the requested value is the field's cap,
+      // not a typo — accept it.
+      if (actual.length < value.length && value.startsWith(actual)) return actual;
       if (attempt === 3) throw new Error(`fill ${fieldName}: expected ${value}, got "${actual}"`);
     }
+    return "";
   }
 
   /**

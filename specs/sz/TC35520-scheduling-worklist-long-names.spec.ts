@@ -35,10 +35,12 @@ const PROCEDURE_LONG =
 
 const PATIENT_A = {
   firstName: "Maximilian Alexander Bartholomew",
+  middleName: "Thaddeus Ignatius Cornelius Theophilus",
   lastName: "Worthington-Huntington-Smytheington",
 };
 const PATIENT_B = {
   firstName: "Michael",
+  middleName: "Anthony",
   lastName: "Johnson-TC35520",
 };
 
@@ -47,10 +49,10 @@ test(
   { tag: ["@SZ35520", "@scheduling-worklist"] },
   async ({ authedPage }) => {
     const ctx = createEhrContext(authedPage);
-    const admission = async (lastName: string, firstName: string) => {
+    const admission = async (lastName: string, firstName: string, middleName: string) => {
       await runGoal(authedPage, "create_encounter", {
         preset: "inpatient_acute_admit",
-        params: { lastName, firstName },
+        params: { lastName, firstName, middleName },
       });
       const patient = (ctx.scratch as { patient?: { ssn?: string } }).patient;
       expect(patient?.ssn, "create_encounter must leave the ssn in scratch").toBeTruthy();
@@ -59,12 +61,12 @@ test(
 
     const ssnA: string[] = [];
     await test.step("TC 1a: admit patient A (long name) with insurance + BNR", async () => {
-      ssnA.push(await admission(PATIENT_A.lastName, PATIENT_A.firstName));
+      ssnA.push(await admission(PATIENT_A.lastName, PATIENT_A.firstName, PATIENT_A.middleName));
     });
 
     const ssnB: string[] = [];
     await test.step("TC 1b: admit patient B (short name) with insurance + BNR", async () => {
-      ssnB.push(await admission(PATIENT_B.lastName, PATIENT_B.firstName));
+      ssnB.push(await admission(PATIENT_B.lastName, PATIENT_B.firstName, PATIENT_B.middleName));
     });
 
     await test.step("TC 2a: procedure referral for A (184-char procedure)", async () => {
@@ -104,8 +106,11 @@ test(
         `procedure tooltip must carry the full name; got: ${JSON.stringify(tooltips)}`
       ).toBe(true);
 
-      const nameEl = worklist.patientName(fullNameA);
-      await expect(nameEl).toHaveAttribute("aria-label", fullNameA);
+      const nameEl = worklist.patientName(PATIENT_A.lastName, PATIENT_A.firstName);
+      await expect(
+        nameEl,
+        "drawer patient-name element must carry the full display name as tooltip content"
+      ).toHaveAttribute("aria-label", new RegExp(`^${fullNameA}`));
       expect(await worklist.hasEllipsisStyle(nameEl), "patient name must use the ellipsis truncation style").toBe(true);
       // The patient-name Tooltip cannot be mouse-triggered on narrow headless
       // viewports (the header is horizontally clipped by the drawer), so the
