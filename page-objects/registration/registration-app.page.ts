@@ -61,10 +61,14 @@ export class RegistrationAppPage {
     await searchInput.press("Enter");
   }
 
-  /** Open the first matching result's name link; proves the patient tab. */
+  /** Open the first matching result's name link; proves the patient tab.
+   *  The name cell (and its testid) is TRUNCATED by the MPI grid at 60
+   *  chars — a long "last, first" full name never matches, so match by
+   *  testid prefix on the last name only. The preceding MRN/SSN search
+   *  already narrowed the grid to the one target patient (TC35520). */
   async openPatientResult(lastName: string, firstName: string): Promise<void> {
     const nameLink = this.page
-      .getByTestId(`cci-patient-name-${lastName}, ${firstName}`)
+      .locator(`[data-testid^="cci-patient-name-${lastName}"]`)
       .first();
     await nameLink.waitFor({ state: "visible", timeout: 30_000 });
     await nameLink.click();
